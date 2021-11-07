@@ -166,7 +166,7 @@ def get_pck_with_sigma(predict_labels_dict, gt_labels, sigma_list = np.arange(0,
         for sigma in interval:
             if sigma not in pck_dict:
                 pck_dict[sigma] = []
-            pck_dict[sigma].append(PCK(pred_label, gt_label, im_size/2.2, sigma))
+            pck_dict[sigma].append(PCK(pred_label, gt_label, sigma))
             # Attention!
             # since our cropped image is 2.2 times of hand tightest bounding box,
             # we simply use im_size / 2,2 as the tightest bounding box
@@ -180,13 +180,13 @@ def get_pck_with_sigma(predict_labels_dict, gt_labels, sigma_list = np.arange(0,
         # plot it
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        ax.plot(interval*im_size/2.2,
+        ax.plot(interval,
                 pck_res,
                 # c=colors[0],
                 linestyle='-', linewidth=1)
         plt.xlabel('Normalized distance (px) / ', fontsize=12)
         plt.ylabel('Fraction of frames within distance / %', fontsize=12)
-        plt.xlim([interval[0]*im_size/2.2, interval[-1]*im_size/2.2])
+        plt.xlim([interval[0], interval[-1]])
         plt.ylim([0.0, 1.0])
         ax.grid(True)
 
@@ -202,7 +202,7 @@ def get_pck_with_sigma(predict_labels_dict, gt_labels, sigma_list = np.arange(0,
     return {'sigma_pck': {str(interval[i]): pck_res[i] for i in range(len(pck_res))}, 'AUC': AUC}
 
 
-def PCK(predict, target, bb_size=256, sigma=0.1):
+def PCK(predict, target, thre_dis=1):
     """
     Calculate PCK
     :param predict: list    len:21      element:[x, y]
@@ -215,8 +215,8 @@ def PCK(predict, target, bb_size=256, sigma=0.1):
     for i in range(21):
         pre = predict[i]
         tar = target[i]
-        dis = np.sqrt((pre[0] - tar[0]) ** 2 + (pre[1] - tar[1]) ** 2)
-        if dis < sigma * bb_size:
+        dis = np.sqrt((pre[0] - tar[0]) ** 2 + (pre[1] - tar[1]) ** 2 + (pre[2] - tar[2]) ** 2)
+        if dis < thre_dis:
             pck += 1
     return pck / 21.0
 
@@ -327,8 +327,6 @@ def live_application(arg):
             params = get_params(opt_state)
 
             pred_v, pred_joint_3d = mano_de(params, joint_root, bone)
-            xy = (pred_joint_3d[..., :2] / pred_joint_3d[..., 2:])
-            pred_joint_2d = (xy * camparam[:, :, :2]) + camparam[:, :, 2:4]
             frame1 = renderer(pred_v, intr[0].cpu(), frame)
             if not os.path.exists(f"workspace/hand-complete/{dire}/"):
                 os.makedirs(f"workspace/hand-complete/{dire}/")
@@ -337,8 +335,6 @@ def live_application(arg):
             gt_v, gt_joint_3d = mano_de(
                 {'so3': np.concatenate((meta_info["mano_params_r"][-3:], meta_info["mano_params_r"][0:45],), axis=-1),
                  'beta': meta_info["mano_params_r"][45:55], 'bone': bone, 'quat':meta_info["mano_params_r"][55:59]}, joint_root, bone)
-            xy = (gt_joint_3d[..., :2] / gt_joint_3d[..., 2:])
-            gt_joint_2d = (xy * camparam[:, :, :2]) + camparam[:, :, 2:4]
             frame1 = renderer(gt_v, intr[0].cpu(), frame)
             cv2.imwrite(f"workspace/hand-complete/{dire}/{img_path.split('/')[-1]}_gt.jpg", np.flip(frame1, -1))
             # mano2cmu = [
@@ -347,13 +343,12 @@ def live_application(arg):
             # gt_3d = meta_info["joints_3d_normed_r"][mano2cmu, :]
 
             predict_labels_dict[img_path] = {}
-            predict_labels_dict[img_path]["prd_label"] = pred_joint_2d[0]
+            predict_labels_dict[img_path]["prd_label"] = pred_joint_3d[0]*1000
             predict_labels_dict[img_path]["resol"] = 480
-            gt_labels[img_path] = gt_joint_2d[0]
-            # exit()
-            break
-    print(get_pck_with_sigma(predict_labels_dict, gt_labels, sigma_list=np.arange(0/480*2.2, 20/480*2.2, 0.01), save_path=f'workspace/hand-complete/{dire}/pck0-20.jpg'))
-    print(get_pck_with_sigma(predict_labels_dict, gt_labels, sigma_list=np.arange(20/480*2.2, 50/480*2.2, 0.01), save_path=f'workspace/hand-complete/{dire}/pck20-50.jpg'))
+            gt_labels[img_path] = gt_joint_3d[0]*1000
+
+    print(get_pck_with_sigma(predict_labels_dict, gt_labels, sigma_list=np.arange(0, 20, 1), save_path=f'workspace/hand-complete/{dire}/pck0-20.jpg'))
+    print(get_pck_with_sigma(predict_labels_dict, gt_labels, sigma_list=np.arange(20, 50, 1), save_path=f'workspace/hand-complete/{dire}/pck20-50.jpg'))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
