@@ -220,7 +220,7 @@ def PCK(predict, target, thre_dis=1):
             pck += 1
     return pck / 21.0
 
-
+from time import time
 def live_application(arg):
     model = HandNet()
     model = model.to(device)
@@ -249,6 +249,7 @@ def live_application(arg):
     predict_labels_dict = {}
     gt_labels = {}
     with torch.no_grad():
+        time_cost = time()
         for img_path in img_list:
             i = i + 1
             img = np.array(Image.open(img_path))
@@ -332,21 +333,23 @@ def live_application(arg):
                 os.makedirs(f"workspace/hand-complete/{dire}/")
             cv2.imwrite(f"workspace/hand-complete/{dire}/{img_path.split('/')[-1]}_pred.jpg", np.flip(frame1, -1))
 
-            gt_v, gt_joint_3d = mano_de(
-                {'so3': np.concatenate((meta_info["mano_params_r"][-3:], meta_info["mano_params_r"][0:45],), axis=-1),
-                 'beta': meta_info["mano_params_r"][45:55], 'bone': bone, 'quat':meta_info["mano_params_r"][55:59]}, joint_root, bone)
-            frame1 = renderer(gt_v, intr[0].cpu(), frame)
-            cv2.imwrite(f"workspace/hand-complete/{dire}/{img_path.split('/')[-1]}_gt.jpg", np.flip(frame1, -1))
-            # mano2cmu = [
-            #     0, 13, 14, 15, 16, 1, 2, 3, 17, 4, 5, 6, 18, 10, 11, 12, 19, 7, 8, 9, 20
-            # ]
-            # gt_3d = meta_info["joints_3d_normed_r"][mano2cmu, :]
-
-            predict_labels_dict[img_path] = {}
-            predict_labels_dict[img_path]["prd_label"] = pred_joint_3d[0]*1000
-            predict_labels_dict[img_path]["resol"] = 480
-            gt_labels[img_path] = gt_joint_3d[0]*1000
-
+            # gt_v, gt_joint_3d = mano_de(
+            #     {'so3': np.concatenate((meta_info["mano_params_r"][-3:], meta_info["mano_params_r"][0:45],), axis=-1),
+            #      'beta': meta_info["mano_params_r"][45:55], 'bone': bone, 'quat':meta_info["mano_params_r"][55:59]}, joint_root, bone)
+            # frame1 = renderer(gt_v, intr[0].cpu(), frame)
+            # cv2.imwrite(f"workspace/hand-complete/{dire}/{img_path.split('/')[-1]}_gt.jpg", np.flip(frame1, -1))
+            # # mano2cmu = [
+            # #     0, 13, 14, 15, 16, 1, 2, 3, 17, 4, 5, 6, 18, 10, 11, 12, 19, 7, 8, 9, 20
+            # # ]
+            # # gt_3d = meta_info["joints_3d_normed_r"][mano2cmu, :]
+            #
+            # predict_labels_dict[img_path] = {}
+            # predict_labels_dict[img_path]["prd_label"] = pred_joint_3d[0]*1000
+            # predict_labels_dict[img_path]["resol"] = 480
+            # gt_labels[img_path] = gt_joint_3d[0]*1000
+    time_cost = time() - time_cost
+    print(time_cost/len(img_list))
+    exit()
     print(get_pck_with_sigma(predict_labels_dict, gt_labels, sigma_list=np.arange(0, 20, 1), save_path=f'workspace/hand-complete/{dire}/pck0-20.jpg'))
     print(get_pck_with_sigma(predict_labels_dict, gt_labels, sigma_list=np.arange(20, 50, 1), save_path=f'workspace/hand-complete/{dire}/pck20-50.jpg'))
 
