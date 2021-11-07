@@ -108,11 +108,14 @@ def residuals(input_list,so3_init,beta_init,joint_root,kp2d,camparam):
 def mano_de(params,joint_root,bone):
     so3 = params['so3']
     beta = params['beta']
-    quat = params['quat']
+    if 'quat' in params:
+        quat = params['quat'][npj.newaxis,...]
+    else:
+        quat = None
     verts_mano, joint_mano, _ = mano_layer(
         pose_coeffs = so3[npj.newaxis,...],
         betas = beta[npj.newaxis,...],
-        quat = quat[npj.newaxis,...]
+        quat = quat
     )
 
     bone_pred = npj.linalg.norm(joint_mano[:, 0, :] - joint_mano[:, 9, :],axis=1, keepdims=True)
@@ -323,39 +326,32 @@ def live_application(arg):
                 opt_state = opt_update(n, grads, opt_state)
             params = get_params(opt_state)
 
-
-            # print(kp2d)
-
-
-            print(meta_info["mano_params_r"][55:])
-            # print({'so3':so3, 'beta':beta, 'bone':bone})
-            # exit()
-            # params['so3'] = meta_info["mano_params_r"][0:48]
-            # params['beta'] = meta_info["mano_params_r"][48:58]
-            v, joint_mano_3d = mano_de(
-                {'so3': np.concatenate((meta_info["mano_params_r"][-3:], meta_info["mano_params_r"][0:45],), axis=-1),
-                 'beta': meta_info["mano_params_r"][45:55], 'bone': bone, 'quat':meta_info["mano_params_r"][55:59]}, joint_root, bone)
-            xy = (joint_mano_3d[..., :2] / joint_mano_3d[..., 2:])
-            uv = (xy * camparam[:, :, :2]) + camparam[:, :, 2:4]
-            # print(joint_mano_3d)
-            mano2cmu = [
-                0, 13, 14, 15, 16, 1, 2, 3, 17, 4, 5, 6, 18, 10, 11, 12, 19, 7, 8, 9, 20
-            ]
-            gt_3d = meta_info["joints_3d_normed_r"][mano2cmu, :]
-            # print(gt_3d - gt_3d[9,:])
-            # exit()
-            frame1 = renderer(v,intr[0].cpu(),frame)
+            pred_v, pred_joint_3d = mano_de(params, joint_root, bone)
+            xy = (pred_joint_3d[..., :2] / pred_joint_3d[..., 2:])
+            pred_joint_2d = (xy * camparam[:, :, :2]) + camparam[:, :, 2:4]
+            frame1 = renderer(pred_v, intr[0].cpu(), frame)
             if not os.path.exists(f"workspace/hand-complete/{dire}/"):
                 os.makedirs(f"workspace/hand-complete/{dire}/")
-            cv2.imwrite(f"workspace/hand-complete/{dire}/" + img_path.split('/')[-1], np.flip(frame1, -1))
-            # cv2.imwrite("debug/" + img_path.replace('/', '_'), np.flip(frame1, -1))
+            cv2.imwrite(f"workspace/hand-complete/{dire}/{img_path.split('/')[-1]}_pred.jpg", np.flip(frame1, -1))
+
+            gt_v, gt_joint_3d = mano_de(
+                {'so3': np.concatenate((meta_info["mano_params_r"][-3:], meta_info["mano_params_r"][0:45],), axis=-1),
+                 'beta': meta_info["mano_params_r"][45:55], 'bone': bone, 'quat':meta_info["mano_params_r"][55:59]}, joint_root, bone)
+            xy = (gt_joint_3d[..., :2] / gt_joint_3d[..., 2:])
+            gt_joint_2d = (xy * camparam[:, :, :2]) + camparam[:, :, 2:4]
+            frame1 = renderer(gt_v, intr[0].cpu(), frame)
+            cv2.imwrite(f"workspace/hand-complete/{dire}/{img_path.split('/')[-1]}_gt.jpg", np.flip(frame1, -1))
+            # mano2cmu = [
+            #     0, 13, 14, 15, 16, 1, 2, 3, 17, 4, 5, 6, 18, 10, 11, 12, 19, 7, 8, 9, 20
+            # ]
+            # gt_3d = meta_info["joints_3d_normed_r"][mano2cmu, :]
 
             predict_labels_dict[img_path] = {}
-            predict_labels_dict[img_path]["prd_label"] = uv[0]
+            predict_labels_dict[img_path]["prd_label"] = pred_joint_2d[0]
             predict_labels_dict[img_path]["resol"] = 480
-            gt_labels[img_path] = meta_info["joints_2d_r"]*256.0/480.0
+            gt_labels[img_path] = gt_joint_2d[0]
             # exit()
-            # break
+            break
     print(get_pck_with_sigma(predict_labels_dict, gt_labels, sigma_list=np.arange(0/480*2.2, 20/480*2.2, 0.01), save_path=f'workspace/hand-complete/{dire}/pck0-20.jpg'))
     print(get_pck_with_sigma(predict_labels_dict, gt_labels, sigma_list=np.arange(20/480*2.2, 50/480*2.2, 0.01), save_path=f'workspace/hand-complete/{dire}/pck20-50.jpg'))
 
