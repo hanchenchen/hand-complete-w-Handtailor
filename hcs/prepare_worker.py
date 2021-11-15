@@ -10,6 +10,8 @@ from scipy import ndimage
 from .ssd import build_ssd
 from .hrnet import inference, postprocess
 
+import PIL.Image as Image
+
 
 # Using Multiprocessing to do this
 def Worker(input_queue, output_queue, proc_id,
@@ -19,35 +21,25 @@ def Worker(input_queue, output_queue, proc_id,
            threshold, lefthand, righthand, w_silhouette,
            w_pointcloud, w_poseprior, w_shapeprior, w_reprojection,
            use_pcaprior=True, init_params=None, usage="getshape", all_pose=False, method=0):
-    # Load Detect Model
-    detect_net = build_ssd('test', size=300, num_classes=2)
-    detect_net.load_state_dict(torch.load(detectmodel_path))
-    detect_net.eval()
-    detect_net = detect_net.cuda()
-    # Solver object
-    solver = Solver(step_size=step_size,
-                    num_iters=num_iters,
-                    threshold=threshold,
-                    w_poseprior=w_poseprior,
-                    w_shapeprior=w_shapeprior,
-                    w_pointcloud=w_pointcloud,
-                    w_reprojection=w_reprojection,
-                    w_silhouette=w_silhouette,
-                    lefthand=lefthand,
-                    righthand=righthand,
-                    verbose=verbose,
-                    fit_camera=True,
-                    use_pcaprior=use_pcaprior)
 
     # Get fit target
     meta = input_queue.get()
     color, depth, Ks = meta['color'][0], meta['depth'][0], meta['ks'][0]
-    # color, depth, Ks = inputs['color'][0], inputs['depth'][0], inputs['ks'][0]
-    v = np.linspace(0, height - 1, height)
-    u = np.linspace(0, width - 1, width)
-    coords_u, coords_v = np.meshgrid(u, v)
 
-    outputs = get_handpose(color, detect_inputsize, detect_net, detect_threshold, pose_inputsize)
+    color = Image.fromarray(cv2.cvtColor(color,cv2.COLOR_BGR2RGB))
+    H, W, C = color.shape
+    device = color.device
+
+    color_left = color[:, :H, :]
+    color_right = color[:, H:, :]
+    output = {}
+    for img in enumerate([color_left, color_right]):
+
+
+
+
+
+
     if len(outputs) == 1:
         # 当检测到的手少于两个时报错
         output_queue.put(outputs)
