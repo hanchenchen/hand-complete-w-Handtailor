@@ -2,3 +2,6 @@
 *.xml
 *.iml
 workspace/
+*.pyc
+*.pyc
+__pycache__/manolayer.cpython-38.pyc

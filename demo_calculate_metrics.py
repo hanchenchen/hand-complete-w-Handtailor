@@ -87,7 +87,7 @@ def residuals(input_list,so3_init,beta_init,joint_root,kp2d,camparam):
     bone = input_list['bone']
     so3 = so3[npj.newaxis,...]
     beta = beta[npj.newaxis,...]
-    _, joint_mano, _ = mano_layer(
+    _, joint_mano, _, _ = mano_layer(
         pose_coeffs = so3,
         betas = beta
     )
@@ -112,7 +112,7 @@ def mano_de(params,joint_root,bone):
         quat = params['quat'][npj.newaxis,...]
     else:
         quat = None
-    verts_mano, joint_mano, _ = mano_layer(
+    verts_mano, joint_mano, _, result = mano_layer(
         pose_coeffs = so3[npj.newaxis,...],
         betas = beta[npj.newaxis,...],
         quat = quat
@@ -123,11 +123,11 @@ def mano_de(params,joint_root,bone):
     verts_mano = verts_mano / bone_pred
     verts_mano = verts_mano * bone  + joint_root
     v = verts_mano[0]
-    return v, joint_mano
+    return v, joint_mano, result
 
 @jit
 def mano_de_j(so3, beta):
-    _, joint_mano, _ = mano_layer(
+    _, joint_mano, _, _ = mano_layer(
         pose_coeffs = so3[npj.newaxis,...],
         betas = beta[npj.newaxis,...]
     )
@@ -142,12 +142,17 @@ def mano_de_j(so3, beta):
 import pickle as pkl
 import os
 
-import os
 import numpy as np
 import logging
 import matplotlib.pyplot as plt
 import json
 from sklearn.metrics import auc
+
+import numpy as np
+import math
+from scipy.spatial.transform import Rotation as R
+
+
 def get_pck_with_sigma(predict_labels_dict, gt_labels, sigma_list = np.arange(0, 1, 0.05), save_path = None ):
     """
     Get PCK with different sigma threshold
@@ -243,14 +248,20 @@ def live_application(arg):
     opt_init = jit(opt_init)
     opt_update = jit(opt_update)
     get_params = jit(get_params)
-    i = 0
     dire = "ground_truth_wristbackward"
+    # img_list = glob.glob(f"./workspace/{dire}/color/*")
+    # print(img_list)
+    # for i, img_path in enumerate(img_list):
+    #     os.rename(img_path, '/'.join(img_path.split('/')[:-1]) +'/'+ img_path.split('/')[-1].zfill(10))
     img_list = glob.glob(f"./workspace/{dire}/color/*")
+    img_list.sort()
+
+
     predict_labels_dict = {}
     gt_labels = {}
+    init_root_quat = None
     with torch.no_grad():
-        for img_path in img_list:
-            i = i + 1
+        for i, img_path in enumerate(img_list):
             img = np.array(Image.open(img_path))
             if img is None:
                 continue
@@ -326,29 +337,64 @@ def live_application(arg):
                 opt_state = opt_update(n, grads, opt_state)
             params = get_params(opt_state)
 
-            pred_v, pred_joint_3d = mano_de(params, joint_root, bone)
+            pred_v, pred_joint_3d, result = mano_de(params, joint_root, bone)
             frame1 = renderer(pred_v, intr[0].cpu(), frame)
             if not os.path.exists(f"workspace/hand-complete/{dire}/"):
                 os.makedirs(f"workspace/hand-complete/{dire}/")
-            cv2.imwrite(f"workspace/hand-complete/{dire}/{img_path.split('/')[-1]}_pred.jpg", np.flip(frame1, -1))
+            # cv2.imwrite(f"workspace/hand-complete/{dire}/{img_path.split('/')[-1]}_pred.jpg", np.flip(frame1, -1))
 
-            gt_v, gt_joint_3d = mano_de(
+            root_rot_matrix = result['root_rot_matrix']
+            root_rot_matrix = R.from_matrix(root_rot_matrix)
+            root_quat = root_rot_matrix.as_quat()
+            euler = root_rot_matrix.as_euler('zxy', degrees=True)
+            if not i:
+                angle = 0
+                init_root_quat = root_quat
+                init_euler = euler
+                print(init_root_quat)
+            else:
+                print('root_quat', root_quat)
+                angle = 2 * np.arccos(np.abs(np.sum(init_root_quat * root_quat))) * 180 / np.pi
+                print('angle', angle)
+                print('euler', euler - init_euler)
+                cv2.imwrite(f"workspace/hand-complete/{dire}/{img_path.split('/')[-1]}_pred_{angle}.jpg",
+                            np.flip(frame1, -1))
+            print()
+
+
+            gt_v, gt_joint_3d, result = mano_de(
                 {'so3': np.concatenate((meta_info["mano_params_r"][-3:], meta_info["mano_params_r"][0:45],), axis=-1),
                  'beta': meta_info["mano_params_r"][45:55], 'bone': bone, 'quat':meta_info["mano_params_r"][55:59]}, joint_root, bone)
             frame1 = renderer(gt_v, intr[0].cpu(), frame)
-            cv2.imwrite(f"workspace/hand-complete/{dire}/{img_path.split('/')[-1]}_gt.jpg", np.flip(frame1, -1))
+            # cv2.imwrite(f"workspace/hand-complete/{dire}/{img_path.split('/')[-1]}_gt.jpg", np.flip(frame1, -1))
             # mano2cmu = [
             #     0, 13, 14, 15, 16, 1, 2, 3, 17, 4, 5, 6, 18, 10, 11, 12, 19, 7, 8, 9, 20
             # ]
             # gt_3d = meta_info["joints_3d_normed_r"][mano2cmu, :]
 
+            root_rot_matrix = result['root_rot_matrix']
+            root_rot_matrix = R.from_matrix(root_rot_matrix)
+            root_quat = root_rot_matrix.as_quat()
+            euler = root_rot_matrix.as_euler('zxy', degrees=True)
+            if not i:
+                angle = 0
+                init_root_quat = root_quat
+                init_euler = euler
+                print(init_root_quat)
+            else:
+                print('root_quat', root_quat)
+                angle = 2*np.arccos(np.abs(np.sum(init_root_quat * root_quat)))*180/np.pi
+                print('angle', angle)
+                print('euler', euler - init_euler)
+                cv2.imwrite(f"workspace/hand-complete/{dire}/{img_path.split('/')[-1]}_gt_{angle}.jpg", np.flip(frame1, -1))
+            print()
             predict_labels_dict[img_path] = {}
             predict_labels_dict[img_path]["prd_label"] = pred_joint_3d[0]*1000
             predict_labels_dict[img_path]["resol"] = 480
             gt_labels[img_path] = gt_joint_3d[0]*1000
 
-    print(get_pck_with_sigma(predict_labels_dict, gt_labels, sigma_list=np.arange(0, 20, 1), save_path=f'workspace/hand-complete/{dire}/pck0-20.jpg'))
-    print(get_pck_with_sigma(predict_labels_dict, gt_labels, sigma_list=np.arange(20, 50, 1), save_path=f'workspace/hand-complete/{dire}/pck20-50.jpg'))
+    # print(get_pck_with_sigma(predict_labels_dict, gt_labels, sigma_list=np.arange(0, 20, 1), save_path=f'workspace/hand-complete/{dire}/pck0-20.jpg'))
+    # print(get_pck_with_sigma(predict_labels_dict, gt_labels, sigma_list=np.arange(20, 50, 1), save_path=f'workspace/hand-complete/{dire}/pck20-50.jpg'))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

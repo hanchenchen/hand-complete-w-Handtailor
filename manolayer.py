@@ -4,6 +4,8 @@ from jax import jit
 import pickle
 import cv2
 
+from collections import defaultdict
+
 class ManoLayer():
     __constants__ = [
         'use_pca', 'rot', 'ncomps', 'ncomps', 'kintree_parents', 'check',
@@ -175,6 +177,7 @@ class ManoLayer():
                  betas=np.zeros(1),
                  quat=None,
                  ):
+        result = defaultdict()
         batch_size = pose_coeffs.shape[0]
         # Get axis angle from PCA components and coefficients
         # Remove global rot coeffs
@@ -190,8 +193,10 @@ class ManoLayer():
             root_rot = rot_map[:, :9].reshape(batch_size, 3, 3)
         else:
             root_rot = self._quat2mat(quat)
+        result['root_rot_matrix'] = root_rot
         rot_map = rot_map[:, 9:]
         pose_map = pose_map[:, 9:]
+        result['pose_rot_matrix'] = pose_map
 
         # Full axis angle representation with root joint
         v_shaped = np.matmul(self.shapedirs, betas.transpose((1, 0))).transpose((2, 0, 1)) + self.v_template
@@ -269,7 +274,7 @@ class ManoLayer():
         jtr = jtr - center_joint
         verts = verts - center_joint
 
-        return verts, jtr, full_pose
+        return verts, jtr, full_pose, result
 
 if __name__ == "__main__":
     manolayer = ManoLayer()
