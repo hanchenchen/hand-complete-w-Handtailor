@@ -21,30 +21,22 @@ def Worker(inputs_queue, output_queue, proc_id, init_params, hand_joints, extra_
            height, width, step_size, num_iters,
            threshold, lefthand, righthand,
            w_silhouette, w_pointcloud, w_poseprior, w_reprojection,  w_temporalprior, left, use_pcaprior=True):
-    solver = Solver(init_params=init_params,
-                    step_size=step_size,
-                    num_iters=num_iters,
-                    threshold=threshold,
-                    w_poseprior=w_poseprior,
-                    w_pointcloud=w_pointcloud,
-                    w_silhouette=w_silhouette,
-                    w_reprojection=w_reprojection,
-                    w_temporalprior=w_temporalprior,
-                    lefthand=lefthand,
-                    righthand=righthand,
-                    verbose=False,
-                    use_pcaprior=use_pcaprior)
-    # learnable_params = get_init_params(init_params, solver.device, gesture)
-    learnable_params = get_init_params(init_params, solver.device, gesture)
-    v = np.linspace(0, height - 1, height)
-    u = np.linspace(0, width - 1, width)
-    coords_u, coords_v = np.meshgrid(u, v)
-    # optimizer = torch.optim.SGD(learnable_params, lr=step_size, momentum=0.0, nesterov=False)
+
+    init_Rs = None
+    init_glb_rot = init_params[55:59]
     completeness_estimator = Completeness(gesture, wrist_rot_pitch, wrist_rot_yaw)
-    hrnet = inference.get_hrnet()
     count = 0
+    output = {
+        "opt_params": [],
+        "vertices": [],
+        "extra_verts": [],
+        "hand_joints": [],
+
+        "completeness": [],
+        "angles": [],
+        "mismatchness": [],
+    }
     while True:
-        # if not inputs_queue.empty():
         meta = inputs_queue.get()
         if meta == 'STOP':
             print("Quit Estimate Process.")
