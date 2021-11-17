@@ -7,3 +7,6 @@ __pycache__/
 *.pkl
 *.pt
 *.jpg
+*.json
+*.pth
+*.png
