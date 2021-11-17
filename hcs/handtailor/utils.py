@@ -6,7 +6,7 @@ from opendr.camera import ProjectPoints
 from opendr.renderer import ColoredRenderer
 from opendr.lighting import LambertianPointLight
 
-import common
+import handtailor.common as common
 
 def normalize_quaternion(quaternion,eps=1e-12):
     return F.normalize(quaternion, p=2, dim=-1, eps=eps)

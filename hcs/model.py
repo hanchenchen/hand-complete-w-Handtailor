@@ -1,8 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import utils
-import common
+import handtailor.utils as utils
+import handtailor.common as common
+
 
 class BottleneckBlock(nn.Module):
     def __init__(self, in_planes, out_planes):

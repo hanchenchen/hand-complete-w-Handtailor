@@ -6,3 +6,4 @@ workspace/
 __pycache__/
 *.pkl
 *.pt
+*.jpg
