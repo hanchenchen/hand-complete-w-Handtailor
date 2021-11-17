@@ -3,19 +3,12 @@ import cv2
 import torch
 import heapq
 from collections import OrderedDict
-from .estimate_solve import Solver
+from .prepare_solve import Solver
 from scipy import ndimage
 from utils import Completeness
 from .hrnet import inference, postprocess
 
 
-# def Worker(inputs_queue, output_queue, proc_id, init_params,
-#            wrist_rot_pitch, wrist_rot_yaw, gesture,
-#            left_wrist_loc, right_wrist_loc, y_mtip,
-#            height, width, step_size, num_iters,
-#            threshold, lefthand, righthand,
-#            w_silhouette, w_pointcloud, w_poseprior, left, use_pcaprior=True):
-# hand_joints 每个循环更新
 def Worker(inputs_queue, output_queue, proc_id, init_params, hand_joints, extra_verts,
            wrist_rot_pitch, wrist_rot_yaw, gesture,
            height, width, step_size, num_iters,
@@ -23,19 +16,9 @@ def Worker(inputs_queue, output_queue, proc_id, init_params, hand_joints, extra_
            w_silhouette, w_pointcloud, w_poseprior, w_reprojection,  w_temporalprior, left, use_pcaprior=True):
 
     init_Rs = None
-    init_glb_rot = init_params[55:59]
+    init_glb_rot = None
     completeness_estimator = Completeness(gesture, wrist_rot_pitch, wrist_rot_yaw)
-    count = 0
-    output = {
-        "opt_params": [],
-        "vertices": [],
-        "extra_verts": [],
-        "hand_joints": [],
-
-        "completeness": [],
-        "angles": [],
-        "mismatchness": [],
-    }
+    solver = Solver()
     while True:
         meta = inputs_queue.get()
         if meta == 'STOP':
@@ -43,52 +26,52 @@ def Worker(inputs_queue, output_queue, proc_id, init_params, hand_joints, extra_
             break
         else:
             color, depth, Ks = meta['color'][0], meta['depth'][0], meta['ks'][0]
-            # outputs = get_silhouettes_and_pointclouds(depth, color, Ks, coords_u, coords_v,
-            #                                           left_wrist_loc, right_wrist_loc, y_mtip)
-            outputs = get_silhouettes_and_pointclouds_tracking(depth, color, Ks, coords_u, coords_v,
-                                                               hand_joints, hrnet, offset=20, idx=count)
-            count += 1
-            # if type(outputs) == int:
-            #     output_queue.put(outputs)
-            # else:
-            silhouettes, pointclouds, pred_pose = outputs
-            # count += 1
-            # visualisze_joint(pred_pose, color, count)
-            if len(pointclouds[0]) == 0 or len(pointclouds[1]) == 0:
-                output_queue.put(1)
-            else:
-                # make target
-                fit_target = OrderedDict()
-                fit_target['silhouette_l'] = silhouettes[0]
-                fit_target['silhouette_r'] = silhouettes[1]
-                fit_target['pointcloud_l'] = pointclouds[0]
-                fit_target['pointcloud_r'] = pointclouds[1]
-                if gesture == "fist":
-                    fit_target['hand_joints_l'] = pred_pose[0]
-                    fit_target['hand_joints_r'] = pred_pose[1]
-                # opt = solver(learnable_params, fit_target, gesture, optimizer)
-                opt = solver(learnable_params, fit_target, Ks, gesture)
-                # completeness = completeness_estimator(opt["opt_params"].astype('float32'),
-                #                                       init_params, left)
-                completeness, sickside_angle, goodside_angle = completeness_estimator(opt["glb_rot"].astype('float32'),
-                                                                                      opt["Rs"].astype('float32'), left)
-                hand_joints = opt['hand_joints'].astype('int')
+            color = Image.fromarray(cv2.cvtColor(color, cv2.COLOR_BGR2RGB))
+            H, W, C = color.shape
 
-                mismatchness = np.mean(np.sqrt(np.sum(np.square(pred_pose - hand_joints), -1)), -1)
-                vertices = np.concatenate(
-                    (opt["vertices"].astype('float32').reshape(2, -1, 3), extra_verts.reshape(2, -1, 3)), 1).reshape(-1, 3) 
-                output = {
+            color_left = color[:, :H, :]
+            color_right = color[:, H:, :]
+            output = {
+                "opt_params": [],
+                "vertices": [],
+                "extra_verts": [],
+                "hand_joints": [],
+            }
+            glb_rot = []
+            Rs = []
+            for i, img in enumerate([color_left, color_right]):
+                _ = solver(img, Ks, i)
+                output["opt_params"].append(_["opt_params"])
+                output["vertices"].append(_["vertices"])
+                output["extra_verts"].append(_["extra_verts"])
+                output["hand_joints"].append(_["hand_joints"])
+
+                glb_rot.append(_["glb_rot"])
+                Rs.append(_["Rs"])
+            for key in output.keys():
+                output[key] = np.stack(output[key], 0)
+            glb_rot = np.stack(glb_rot, 0)
+            Rs = np.stack(Rs, 0)
+            if init_Rs is None:
+                init_Rs = Rs
+                init_glb_rot = glb_rot
+                output.update({
+                    "completeness": 0,
+                    "angles": [0, 0],
+                    "mismatchness": 0
+                })
+            else:
+                glb_rot = np.concatenate((init_glb_rot, glb_rot), 0)
+                Rs = np.concatenate((init_Rs, Rs), 0)
+                completeness, sickside_angle, goodside_angle = completeness_estimator(glb_rot.astype('float32'),
+                                                                                      Rs.astype('float32'))
+                output.update({
                     "completeness": completeness,
-                    "vertices": vertices,
-                    "opt_params": opt["opt_params"].astype('float32'),
-                    # "vertices": opt["vertices"][0].astype('float32'),
-                    "hand_joints": hand_joints,
                     "angles": [sickside_angle, goodside_angle],
-                    "mismatchness": mismatchness
-                }
+                    "mismatchness": 0
+                })
                 output_queue.put(output)
-        # else:
-        #     print("Empty queue")
+
 
 
 def get_init_params(init_params, device, gesture):

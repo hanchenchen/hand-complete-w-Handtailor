@@ -16,9 +16,6 @@ torch.set_num_threads(1)
 # torch.backends.cudnn.enabled = True
 # torch.backends.cudnn.benchmark = False
 import cv2
-import numpy as np
-import torch
-import time
 import torch.backends.cudnn as cudnn
 import jax.numpy as npj
 import PIL.Image as Image
@@ -32,8 +29,7 @@ import pickle
 from manolayer import ManoLayer
 from model import HandNet
 from checkpoints import CheckpointIO
-import utils
-import pickle as pkl
+import utils.hand_tailor_utils as utils
 import os
 
 import logging
@@ -153,7 +149,9 @@ class Solver(object):
             "opt_params": opt_params.astype('float32'),
             "vertices": vertices.astype('float32'),
             "extra_verts": extra_verts.astype('float32'),
-            "hand_joints": kp2d
+            "hand_joints": kp2d,
+            "glb_rot": root_quat,
+            "Rs": result['pose_rot_matrix']
         }
 
         return output
