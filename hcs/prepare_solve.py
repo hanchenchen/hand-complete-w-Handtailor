@@ -266,12 +266,11 @@ class Solver(object):
         root_rot_matrix = R.from_matrix(root_rot_matrix)
         root_quat = root_rot_matrix.as_quat()
 
-        opt_params = numpy.zeros((62))
-        opt_params[0:45] = params['so3']
+        opt_params = np.zeros((62))
+        opt_params[0:45] = params['so3'][3:]
         opt_params[45:55] = params['beta']
         opt_params[55:59] = root_quat
-
-        vertices, extra_verts = add_arm_vertices(pred_v.detach().cpu().numpy()[0], return_faces=False)
+        vertices, extra_verts = add_arm_vertices(pred_v, return_faces=False)
 
         output = {
             "opt_params": opt_params.astype('float32'),
