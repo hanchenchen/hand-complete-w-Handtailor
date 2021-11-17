@@ -3,23 +3,14 @@ Hand Model Fitting
 """
 import torch
 import numpy as np
-from collections import OrderedDict
-from utils import Constraints
-from utils.loss import chamfer_loss
-from utils.optimizer import create_optimizer
-from utils.quaternion import qmul
-# from utils.util import export_ply, add_arm_vertices
 from utils.util import add_arm_vertices
 import time
 
 torch.set_num_threads(1)
-# torch.backends.cudnn.enabled = True
-# torch.backends.cudnn.benchmark = False
+
 import cv2
-import torch.backends.cudnn as cudnn
 import jax.numpy as npj
 import PIL.Image as Image
-import glob
 import argparse
 from jax import grad, jit, vmap
 from jax.experimental import optimizers
@@ -32,12 +23,6 @@ from checkpoints import CheckpointIO
 import utils.hand_tailor_utils as utils
 import os
 
-import logging
-import matplotlib.pyplot as plt
-import json
-from sklearn.metrics import auc
-
-import math
 from scipy.spatial.transform import Rotation as R
 
 mano2cmu = [
