@@ -27,7 +27,7 @@ def Worker(input_queue, output_queue, proc_id,
         "extra_verts": [],
         "hand_joints": []
     }
-    solver = Solver()
+    solver = Solver(Ks=Ks, size=H)
     for i, img in enumerate([color_left, color_right]):
         _ = solver(img, Ks, i)
         output["opt_params"].append(_["opt_params"])

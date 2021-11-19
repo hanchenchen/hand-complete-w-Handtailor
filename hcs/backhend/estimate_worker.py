@@ -15,7 +15,7 @@ def Worker(inputs_queue, output_queue, proc_id, init_params, hand_joints, extra_
     init_Rs = None
     init_glb_rot = None
     completeness_estimator = Completeness(gesture, wrist_rot_pitch, wrist_rot_yaw)
-    solver = Solver()
+    solver = None
     while True:
         meta = inputs_queue.get()
         if meta == 'STOP':
@@ -23,9 +23,11 @@ def Worker(inputs_queue, output_queue, proc_id, init_params, hand_joints, extra_
             break
         else:
             color, depth, Ks = meta['color'][0], meta['depth'][0], meta['ks'][0]
+
             color = cv2.cvtColor(color, cv2.COLOR_BGR2RGB)
             H, W, C = color.shape
-
+            if solver is None:
+                solver = Solver(Ks=Ks, size=H)
             color_left = color[:, :H, :]
             color_right = color[:, H:, :]
             output = {

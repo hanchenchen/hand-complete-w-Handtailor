@@ -1,6 +1,10 @@
 """
 Hand Model Fitting
 """
+import sys
+
+sys.path.append('/workspace/hand-complete-w-Handtailor/hcs/')
+print(sys.path)
 import torch
 import numpy as np
 from utils.util import add_arm_vertices
@@ -181,7 +185,7 @@ def mano_de_j(so3, beta):
 
 class Solver(object):
 
-    def __init__(self):
+    def __init__(self, Ks, size):
 
         self.device = torch.device("cuda" if 0 and torch.cuda.is_available() else "cpu")
 
@@ -202,12 +206,23 @@ class Solver(object):
         self.opt_update = jit(opt_update)
         self.get_params = jit(get_params)
 
+        self.intr = torch.from_numpy(np.array(Ks, dtype=np.float32)).unsqueeze(0).to(self.device)
+        self.intr[:, :2, :] *= 256 / size
+
+        _intr = self.intr.cpu().numpy()
+        self.camparam = np.zeros((1, 21, 4))
+        self.camparam[:, :, 0] = _intr[:, 0, 0]
+        self.camparam[:, :, 1] = _intr[:, 1, 1]
+        self.camparam[:, :, 2] = _intr[:, 0, 2]
+        self.camparam[:, :, 3] = _intr[:, 1, 2]
+
+
     @torch.no_grad()
-    def __call__(self, img, Ks, side):
-        if side == 0:
-            hand_side = "right"
+    def __call__(self, img, Ks, hand_side):
+        if hand_side == 0:
+            self.hand_side = "right"
         else:
-            hand_side = "left"
+            self.hand_side = "left"
         # test codes
         # color = np.array(Image.open('000000.jpg'))
         # H, W, C = color.shape
@@ -218,21 +233,11 @@ class Solver(object):
 
         img = cv2.resize(img, (256, 256), cv2.INTER_LINEAR)
 
-        intr = torch.from_numpy(np.array(Ks, dtype=np.float32)).unsqueeze(0).to(self.device)
-        intr[:, :2, :] *= 256 / img.shape[0]
-
-        _intr = intr.cpu().numpy()
-        camparam = np.zeros((1, 21, 4))
-        camparam[:, :, 0] = _intr[:, 0, 0]
-        camparam[:, :, 1] = _intr[:, 1, 1]
-        camparam[:, :, 2] = _intr[:, 0, 2]
-        camparam[:, :, 3] = _intr[:, 1, 2]
-
         img = functional.to_tensor(img).float()
         img = functional.normalize(img, [0.5, 0.5, 0.5], [1, 1, 1])
         img = img.unsqueeze(0).to(self.device)
 
-        hm, so3, beta, joint_root, bone = self.model(img, intr)
+        hm, so3, beta, joint_root, bone = self.model(img, self.intr)
         kp2d = hm_to_kp2d(hm.detach().cpu().numpy()) * 4
         so3 = so3[0].detach().cpu().float().numpy()
         beta = beta[0].detach().cpu().float().numpy()
@@ -246,16 +251,16 @@ class Solver(object):
         kp2d = npj.array(kp2d)
         so3_init = so3
         beta_init = beta
-        joint_root = reinit_root(joint_root, kp2d, camparam)
+        joint_root = reinit_root(joint_root, kp2d, self.camparam)
         joint = mano_de_j(so3, beta)
-        bone = reinit_scale(joint, kp2d, camparam, bone, joint_root)
+        bone = reinit_scale(joint, kp2d, self.camparam, bone, joint_root)
         params = {'so3': so3, 'beta': beta, 'bone': bone}
         opt_state = self.opt_init(params)
         n = 0
         while n < 20:
             n = n + 1
             params = self.get_params(opt_state)
-            grads = self.gr(params, so3_init, beta_init, joint_root, kp2d, camparam)
+            grads = self.gr(params, so3_init, beta_init, joint_root, kp2d, self.camparam)
             opt_state = self.opt_update(n, grads, opt_state)
         params = self.get_params(opt_state)
 
@@ -282,6 +287,38 @@ class Solver(object):
         return output
 
 
+
 if __name__ == "__main__":
-    solver = Solver()
-    print(solver(1, 1, 1))
+    # test codes
+
+    color = np.array(Image.open('000000.jpg'))
+    Ks = pickle.load(open('000000.pkl', "rb"))['ks']
+
+
+    color = cv2.cvtColor(color, cv2.COLOR_BGR2RGB)
+    H, W, C = color.shape
+    print(color.shape)
+    color_left = color[:, :H, :]
+    color_right = color[:, -H:, :]
+    output = {
+        "opt_params": [],
+        "vertices": [],
+        "extra_verts": [],
+        "hand_joints": []
+    }
+    solver = Solver(Ks=Ks, size=H)
+
+    dd = pickle.load(open("./mano/MANO_RIGHT.pkl", 'rb'), encoding='latin1')
+    face = np.array(dd['f'])
+    renderer = utils.MeshRenderer(face, img_size=256)
+
+
+    for i, img in enumerate([color_left, color_right]):
+        frame = img.copy()
+        _ = solver(img, Ks, i)
+        output["opt_params"].append(_["opt_params"])
+        output["vertices"].append(_["vertices"])
+        output["extra_verts"].append(_["extra_verts"])
+        output["hand_joints"].append(_["hand_joints"])
+        frame1 = renderer(_["vertices"], solver.intr[0].cpu(), frame)
+        cv2.imwrite(f"img{i}.jpg", frame1)
