@@ -273,12 +273,10 @@ class Solver(object):
         opt_params[0:45] = params['so3'][3:]
         opt_params[45:55] = params['beta']
         opt_params[55:59] = root_quat
-        vertices, extra_verts = add_arm_vertices(pred_v, return_faces=False)
 
         output = {
             "opt_params": opt_params.astype('float32'),
-            "vertices": vertices.astype('float32'),
-            "extra_verts": extra_verts.astype('float32'),
+            "vertices": pred_v.astype('float32'),
             "hand_joints": kp2d,
             "glb_rot": root_quat,
             "Rs": result['pose_rot_matrix']
@@ -295,15 +293,14 @@ if __name__ == "__main__":
     Ks = pickle.load(open('000000.pkl', "rb"))['ks']
 
 
-    color = cv2.cvtColor(color, cv2.COLOR_BGR2RGB)
+    # color = cv2.cvtColor(color, cv2.COLOR_BGR2RGB)
     H, W, C = color.shape
     print(color.shape)
     color_left = color[:, :H, :]
-    color_right = color[:, -H:, :]
+    color_right = color[:, -1:-H:-1, :]
     output = {
         "opt_params": [],
         "vertices": [],
-        "extra_verts": [],
         "hand_joints": []
     }
     solver = Solver(Ks=Ks, size=H)
@@ -312,13 +309,16 @@ if __name__ == "__main__":
     face = np.array(dd['f'])
     renderer = utils.MeshRenderer(face, img_size=256)
 
-
     for i, img in enumerate([color_left, color_right]):
         frame = img.copy()
+        frame = cv2.resize(frame, (256, 256), cv2.INTER_LINEAR)
+
         _ = solver(img, Ks, i)
         output["opt_params"].append(_["opt_params"])
         output["vertices"].append(_["vertices"])
-        output["extra_verts"].append(_["extra_verts"])
         output["hand_joints"].append(_["hand_joints"])
+
+        # frame1 = renderer(np.multiply(_["vertices"], [-1, 1, 1]), solver.intr[0].cpu(), frame)
         frame1 = renderer(_["vertices"], solver.intr[0].cpu(), frame)
-        cv2.imwrite(f"img{i}.jpg", frame1)
+
+        cv2.imwrite(f"img{i}.jpg", np.flip(frame1, -1))

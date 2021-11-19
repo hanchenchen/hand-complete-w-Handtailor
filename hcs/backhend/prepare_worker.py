@@ -16,15 +16,14 @@ def Worker(input_queue, output_queue, proc_id,
     meta = input_queue.get()
     color, depth, Ks = meta['color'][0], meta['depth'][0], meta['ks'][0]
 
-    color = cv2.cvtColor(color,cv2.COLOR_BGR2RGB)
+    # color = cv2.cvtColor(color,cv2.COLOR_BGR2RGB)
     H, W, C = color.shape
 
     color_left = color[:, :H, :]
-    color_right = color[:, H:, :]
+    color_right = color[:, -1:-H:-1, :]
     output = {
         "opt_params": [],
         "vertices": [],
-        "extra_verts": [],
         "hand_joints": []
     }
     solver = Solver(Ks=Ks, size=H)
@@ -32,7 +31,6 @@ def Worker(input_queue, output_queue, proc_id,
         _ = solver(img, Ks, i)
         output["opt_params"].append(_["opt_params"])
         output["vertices"].append(_["vertices"])
-        output["extra_verts"].append(_["extra_verts"])
         output["hand_joints"].append(_["hand_joints"])
 
     for key in output.keys():

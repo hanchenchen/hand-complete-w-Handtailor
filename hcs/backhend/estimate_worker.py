@@ -26,14 +26,15 @@ def Worker(inputs_queue, output_queue, proc_id, init_params, hand_joints, extra_
 
             color = cv2.cvtColor(color, cv2.COLOR_BGR2RGB)
             H, W, C = color.shape
+            color_left = color[:, :H, :]
+            color_right = color[:, -1:-H:-1, :]
+
             if solver is None:
                 solver = Solver(Ks=Ks, size=H)
-            color_left = color[:, :H, :]
-            color_right = color[:, H:, :]
+
             output = {
                 "opt_params": [],
                 "vertices": [],
-                "extra_verts": [],
                 "hand_joints": [],
             }
             glb_rot = []
@@ -42,7 +43,6 @@ def Worker(inputs_queue, output_queue, proc_id, init_params, hand_joints, extra_
                 _ = solver(img, Ks, i)
                 output["opt_params"].append(_["opt_params"])
                 output["vertices"].append(_["vertices"])
-                output["extra_verts"].append(_["extra_verts"])
                 output["hand_joints"].append(_["hand_joints"])
 
                 glb_rot.append(_["glb_rot"])
