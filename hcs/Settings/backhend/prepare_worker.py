@@ -10,8 +10,6 @@ from scipy import ndimage
 from .ssd import build_ssd
 from .hrnet import inference, postprocess
 
-import PIL.Image as Image
-
 
 # Using Multiprocessing to do this
 def Worker(input_queue, output_queue, proc_id,
@@ -21,34 +19,65 @@ def Worker(input_queue, output_queue, proc_id,
            threshold, lefthand, righthand, w_silhouette,
            w_pointcloud, w_poseprior, w_shapeprior, w_reprojection,
            use_pcaprior=True, init_params=None, usage="getshape", all_pose=False, method=0):
+    # Load Detect Model
+    detect_net = build_ssd('test', size=300, num_classes=2)
+    detect_net.load_state_dict(torch.load(detectmodel_path))
+    detect_net.eval()
+    detect_net = detect_net.cuda()
+    # Solver object
+    solver = Solver(step_size=step_size,
+                    num_iters=num_iters,
+                    threshold=threshold,
+                    w_poseprior=w_poseprior,
+                    w_shapeprior=w_shapeprior,
+                    w_pointcloud=w_pointcloud,
+                    w_reprojection=w_reprojection,
+                    w_silhouette=w_silhouette,
+                    lefthand=lefthand,
+                    righthand=righthand,
+                    verbose=verbose,
+                    fit_camera=True,
+                    use_pcaprior=use_pcaprior)
 
     # Get fit target
     meta = input_queue.get()
     color, depth, Ks = meta['color'][0], meta['depth'][0], meta['ks'][0]
+    # color, depth, Ks = inputs['color'][0], inputs['depth'][0], inputs['ks'][0]
+    v = np.linspace(0, height - 1, height)
+    u = np.linspace(0, width - 1, width)
+    coords_u, coords_v = np.meshgrid(u, v)
 
-    color = Image.fromarray(cv2.cvtColor(color,cv2.COLOR_BGR2RGB))
-    H, W, C = color.shape
-
-    color_left = color[:, :H, :]
-    color_right = color[:, H:, :]
-    output = {
-        "opt_params": [],
-        "vertices": [],
-        "extra_verts": [],
-        "hand_joints": []
-    }
-    solver = Solver()
-    for i, img in enumerate([color_left, color_right]):
-        _ = solver(img, Ks, i)
-        output["opt_params"].append(_["opt_params"])
-        output["vertices"].append(_["vertices"])
-        output["extra_verts"].append(_["extra_verts"])
-        output["hand_joints"].append(_["hand_joints"])
-
-    for key in output.keys():
-        output[key] = np.stack(output[key], 0)
-
-    output_queue.put(output)
+    outputs = get_handpose(color, detect_inputsize, detect_net, detect_threshold, pose_inputsize)
+    if len(outputs) == 1:
+        # 当检测到的手少于两个时报错
+        output_queue.put(outputs)
+    else:
+        hand_joints, hand_sides = outputs
+        silhouettes, pointclouds = get_silhouettes_and_pointclouds(depth, color, hand_joints, Ks, coords_u, coords_v)
+        visualisze_joint(hand_joints, color, depth)
+        # make target
+        fit_target = OrderedDict()
+        fit_target['silhouette_l'] = silhouettes[0]
+        fit_target['silhouette_r'] = silhouettes[1]
+        fit_target['pointcloud_l'] = pointclouds[0]
+        fit_target['pointcloud_r'] = pointclouds[1]
+        fit_target['hand_joints_l'] = hand_joints[hand_sides.index("left")]
+        fit_target['hand_joints_r'] = hand_joints[hand_sides.index("right")]
+        # learnable parameters
+        if method == 0:
+            learnable_params = get_init_param(init_params, solver.device, usage, all_pose)
+        else:
+            learnable_params = get_init_param_v2(init_params, solver.device, usage)
+        # Do Model fitting
+        opt = solver(learnable_params, fit_target, Ks, method=method)
+        # Put results to output_queue
+        hand_joints = np.stack((fit_target['hand_joints_l'], fit_target['hand_joints_r']), 0)
+        output = {
+            "opt_params": opt["opt_params"].astype('float32'),
+            "vertices": opt["vertices"].astype('float32'),
+            "extra_verts": opt["extra_verts"].astype('float32'),
+            "hand_joints": hand_joints}
+        output_queue.put(output)
 
 
 def get_handpose(color, detect_inputsize, detect_net, detect_threshold, pose_inputsize):
@@ -56,11 +85,8 @@ def get_handpose(color, detect_inputsize, detect_net, detect_threshold, pose_inp
     # Resize color image
     color_rz = cv2.resize(color, (detect_inputsize, detect_inputsize))
     norm_color = (color_rz.astype(np.float32) / 255.0 - 0.5) * 2
-    # batch_norm_color = Variable(torch.from_numpy(norm_color).permute(2, 0, 1).unsqueeze(0)).cuda()
-    batch_norm_color = torch.from_numpy(norm_color).permute(2, 0, 1).unsqueeze(0).cuda()
-    # batch_norm_color = batch_norm_color.requires_grad_()
-
-    detections = detect_net(batch_norm_color).detach()
+    batch_norm_color = Variable(torch.from_numpy(norm_color).permute(2, 0, 1).unsqueeze(0)).cuda()
+    detections = detect_net(batch_norm_color).data
     dets = detections[0, 1, :]
     mask = dets[:, 0].gt(0.).expand(11, dets.size(0)).t()
     dets = torch.masked_select(dets, mask).view(-1, 11)
@@ -276,7 +302,7 @@ def get_silhouettes_and_pointclouds(depth, color, hand_joints, ks, coords_u, coo
 
     num_of_label = [np.sum(labeled_array == (i + 1)) for i in range(num_objects)]
     top2index = list(map(num_of_label.index, heapq.nlargest(2, num_of_label)))
-    print(top2index)
+
     mask1 = color_mask * (labeled_array == (top2index[0] + 1))
     center1 = ndimage.measurements.center_of_mass(mask1)
     mask2 = color_mask * (labeled_array == (top2index[1] + 1))

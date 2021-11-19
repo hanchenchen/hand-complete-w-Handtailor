@@ -169,7 +169,7 @@ class Solver(object):
                     loss_r = self.compute_loss(hand_mesh_r, pointcloud_r, self.righthand_model.get_rotvec_theta(pose_param_r_focus), self.constraints_r)
                 else:
                     loss_l = self.compute_loss(hand_mesh_l, pointcloud_l, pose_param_l_focus, self.constraints_l)
-                    loss_r = self .compute_loss(hand_mesh_r, pointcloud_r, pose_param_r_focus, self.constraints_r)
+                    loss_r = self.compute_loss(hand_mesh_r, pointcloud_r, pose_param_r_focus, self.constraints_r)
                 # Reprojection
                 reprojection_loss_l = gmof(gt_joints_uv_l.unsqueeze(0) - pred_joints_uv_l, sigma=100).sum(dim=-1)
                 reprojection_loss_r = gmof(gt_joints_uv_r.unsqueeze(0) - pred_joints_uv_r, sigma=100).sum(dim=-1)
@@ -220,13 +220,12 @@ class Solver(object):
             pose_param_r_opt = pose_param_r.contiguous()
             quat_param_l_opt = quat_param_l.contiguous()
             quat_param_r_opt = quat_param_r.contiguous()
-        # print('quat_param_l_opt', quat_param_l_opt)
-        # print('quat_param_r_opt', quat_param_r_opt)
+
         quat_param_l_all = qmul(quat_param_l_opt, torch.from_numpy(self.init_quat[:1]).to(quat_param_l_opt.device))
         opt_param_l = np.concatenate((pose_param_l_opt.detach().cpu().numpy(), self.user_shape[:1],
                                       quat_param_l_all.detach().cpu().numpy(), self.init_trans[:1]), 1)
         quat_param_r_all = qmul(quat_param_r_opt, torch.from_numpy(self.init_quat[1:]).to(quat_param_r_opt.device))
-        opt_param_r = np.concatenate ((pose_param_r_opt.detach().cpu().numpy(), self.user_shape[1:],
+        opt_param_r = np.concatenate((pose_param_r_opt.detach().cpu().numpy(), self.user_shape[1:],
                                       quat_param_r_all.detach().cpu().numpy(), self.init_trans[1:]), 1)
         # opt_param_l = torch.cat((pose_param_l_opt, quat_param_l_opt), 1).detach().cpu().numpy()  # 1 x 49
         # opt_param_r = torch.cat((pose_param_r_opt, quat_param_r_opt), 1).detach().cpu().numpy()  # 1 x 49

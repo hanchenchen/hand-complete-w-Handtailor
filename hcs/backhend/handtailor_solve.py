@@ -4,24 +4,21 @@ Hand Model Fitting
 import torch
 import numpy as np
 from utils.util import add_arm_vertices
-import time
 
 torch.set_num_threads(1)
 
 import cv2
 import jax.numpy as npj
 import PIL.Image as Image
-import argparse
 from jax import grad, jit, vmap
 from jax.experimental import optimizers
 from torchvision.transforms import functional
 import pickle
 
-from manolayer import ManoLayer
-from model import HandNet
+from handtailor.manolayer import ManoLayer
+from handtailor.model import HandNet
 from handtailor.checkpoints import CheckpointIO
 import handtailor.utils as utils
-import os
 
 from scipy.spatial.transform import Rotation as R
 
@@ -211,11 +208,12 @@ class Solver(object):
             self.hand_side = "right"
         else:
             self.hand_side = "left"
-        color = np.array(Image.open('000000.jpg'))
-        H, W, C = color.shape
-        img = color[:, :H, :]
-
-        Ks = pickle.load(open('000000.pkl', "rb"))['ks']
+        # test codes
+        # color = np.array(Image.open('000000.jpg'))
+        # H, W, C = color.shape
+        # img = color[:, :H, :]
+        #
+        # Ks = pickle.load(open('000000.pkl', "rb"))['ks']
 
 
         img = cv2.resize(img, (256, 256), cv2.INTER_LINEAR)

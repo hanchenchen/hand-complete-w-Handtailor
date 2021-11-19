@@ -347,12 +347,12 @@ def diff_pose(pose_3d_list, mode = 1):
 
 def main(calibration_mx, frames_num = 10, mode = 1):
     model_floder = './checkpoints'
-    
+
     hrnet_detector = PoseKeypointEstimator()
     hrnet_hand_detector = HandPoseDetector_HRNet(cfg_hrnet)
     lifter = VideoTemporalLifter(model_floder, calibration_mx, frames_num)
 
-    capture = cv2.VideoCapture(1)
+    capture = cv2.VideoCapture(0,cv2.CAP_DSHOW)
     frame_index = 0
     font = cv2.FONT_HERSHEY_SIMPLEX
 
@@ -376,6 +376,8 @@ def main(calibration_mx, frames_num = 10, mode = 1):
         ret, frame = capture.read()
 
         if frame is None:
+            print(1)
+
             continue
 
         width = frame.shape[1]
