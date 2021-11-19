@@ -1,8 +1,9 @@
 import numpy as np
 import cv2
 from utils import Completeness
+import PIL.Image as Image
 
-from worker.handtailor_solve import Solver
+from backhend.handtailor_solve import Solver
 
 
 def Worker(inputs_queue, output_queue, proc_id, init_params, hand_joints, extra_verts,
@@ -22,7 +23,7 @@ def Worker(inputs_queue, output_queue, proc_id, init_params, hand_joints, extra_
             break
         else:
             color, depth, Ks = meta['color'][0], meta['depth'][0], meta['ks'][0]
-            color = Image.fromarray(cv2.cvtColor(color, cv2.COLOR_BGR2RGB))
+            color = cv2.cvtColor(color, cv2.COLOR_BGR2RGB)
             H, W, C = color.shape
 
             color_left = color[:, :H, :]
@@ -46,8 +47,8 @@ def Worker(inputs_queue, output_queue, proc_id, init_params, hand_joints, extra_
                 Rs.append(_["Rs"])
             for key in output.keys():
                 output[key] = np.stack(output[key], 0)
-            glb_rot = np.stack(glb_rot, 0)
-            Rs = np.stack(Rs, 0)
+            glb_rot = np.concatenate(glb_rot, 0)
+            Rs = np.concatenate(Rs, 0)
             if init_Rs is None:
                 init_Rs = Rs
                 init_glb_rot = glb_rot

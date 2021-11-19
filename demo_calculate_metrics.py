@@ -338,7 +338,11 @@ def live_application(arg):
             params = get_params(opt_state)
 
             pred_v, pred_joint_3d, result = mano_de(params, joint_root, bone)
-            frame1 = renderer(pred_v, intr[0].cpu(), frame)
+            frame1 = renderer(pred_v*[1, -1, 1], intr[0].cpu(), frame)
+            print(pred_v.shape)
+            print(pred_v[0])
+            cv2.imwrite("pred.jpg", frame1)
+            exit()
             if not os.path.exists(f"workspace/hand-complete/{dire}/"):
                 os.makedirs(f"workspace/hand-complete/{dire}/")
             # cv2.imwrite(f"workspace/hand-complete/{dire}/{img_path.split('/')[-1]}_pred.jpg", np.flip(frame1, -1))

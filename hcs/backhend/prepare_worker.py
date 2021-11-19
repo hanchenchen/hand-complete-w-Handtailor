@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import PIL.Image as Image
 
-from worker.handtailor_solve import Solver
+from backhend.handtailor_solve import Solver
 
 
 def Worker(input_queue, output_queue, proc_id,
@@ -16,7 +16,7 @@ def Worker(input_queue, output_queue, proc_id,
     meta = input_queue.get()
     color, depth, Ks = meta['color'][0], meta['depth'][0], meta['ks'][0]
 
-    color = Image.fromarray(cv2.cvtColor(color,cv2.COLOR_BGR2RGB))
+    color = cv2.cvtColor(color,cv2.COLOR_BGR2RGB)
     H, W, C = color.shape
 
     color_left = color[:, :H, :]

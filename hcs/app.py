@@ -4,7 +4,7 @@ from PyQt5.QtGui import QFont, QImage, QPixmap
 from PyQt5.Qt import QMessageBox
 from Users import SignUp, SignIn, sqlite_data
 from Settings import Preference
-from backhend import Prepare_Worker, Estimate_Worker
+from backhend import Prepare_Worker, Estimate_Worker, External_Worker
 from collections import deque, OrderedDict
 import multiprocessing as mp
 from threading import Thread
@@ -17,7 +17,7 @@ import camera
 import cv2
 import sys
 import time
-import mesh_displayer
+# import mesh_displayer
 import os
 import json
 import psutil
@@ -182,6 +182,7 @@ class MainWindow(QWidget):
         self._output_queue = mp.Queue()
         window_size = max(int(self.settings.value("CAMERA/HEIGHT")), int(self.settings.value("CAMERA/WIDTH")))
         ks = self._device_output_queue.get()['ks'][0]
+        return
         self._worker_process4 = mp.Process(target=mesh_displayer.Worker, args=(self._vertices_queue, self._output_queue,
                                                                                7, window_size, ks, R))
         self._worker_process4.start()
@@ -473,12 +474,12 @@ class MainWindow(QWidget):
         self.delay_prepare_signal.emit()
 
     def on_singlecam_prepare(self):
-        print('self.signin_UI.dict_elec_threshold', self.signin_UI.dict_elec_threshold)
-        self.elec_threshold_dict = self.signin_UI.dict_elec_threshold[self.ui.gesture]
-        print(self.elec_threshold_dict.keys())
+        # print('self.signin_UI.dict_elec_threshold', self.signin_UI.dict_elec_threshold)
+        # self.elec_threshold_dict = self.signin_UI.dict_elec_threshold[self.ui.gesture]
+        # print(self.elec_threshold_dict.keys())
         # kwargs
         est_method = int(self.settings.value("OPTIMIZATION/EST_METHOD"))
-        if self.num_start_triggered == 0 or est_method == 0:
+        if 0: #self.num_start_triggered == 0 or est_method == 0:
             height = int(self.settings.value("CAMERA/HEIGHT"))
             width = int(self.settings.value("CAMERA/WIDTH"))
             detect_threshold = float(self.settings.value("OPTIMIZATION/DETECT_THRESHOLD"))
@@ -520,8 +521,8 @@ class MainWindow(QWidget):
             res_thread.start()
         else:
             self.start_mesh_display_process()
-            self.update_display3d(self.vertices)
-            self.on_singlecam_estimate_triggered(self.opt_params, self.hand_joints, self.extra_verts)
+            # self.update_display3d(self.vertices)
+            self.on_singlecam_estimate_triggered(None, None, None)
 
         self.num_start_triggered += 1
     
@@ -606,6 +607,7 @@ class MainWindow(QWidget):
                     angles = meta['angles']
                     self.ui.sickside_angle.setText(str(angles[0]))
                     self.ui.goodside_angle.setText(str(angles[1]))
+                    continue
                     mismatchness = meta['mismatchness']
                     self.hand_joints = meta['hand_joints']
                     self.opt_params = meta["opt_params"]
