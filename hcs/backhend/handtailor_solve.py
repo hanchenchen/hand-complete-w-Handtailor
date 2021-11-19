@@ -187,7 +187,7 @@ class Solver(object):
 
     def __init__(self, Ks, size):
 
-        self.device = torch.device("cuda" if 0 and torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.model = HandNet()
         self.model = self.model.to(self.device)
