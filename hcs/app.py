@@ -17,7 +17,7 @@ import camera
 import cv2
 import sys
 import time
-# import mesh_displayer
+import mesh_displayer
 import os
 import json
 import psutil
@@ -182,7 +182,6 @@ class MainWindow(QWidget):
         self._output_queue = mp.Queue()
         window_size = max(int(self.settings.value("CAMERA/HEIGHT")), int(self.settings.value("CAMERA/WIDTH")))
         ks = self._device_output_queue.get()['ks'][0]
-        return
         self._worker_process4 = mp.Process(target=mesh_displayer.Worker, args=(self._vertices_queue, self._output_queue,
                                                                                7, window_size, ks, R))
         self._worker_process4.start()
@@ -542,9 +541,9 @@ class MainWindow(QWidget):
 
     def on_singlecam_terminate_triggered(self):
         # 终止康复手势的估计
-        if self._prepare_process.is_alive():
-            print("Prepare process is still alive!")
-            return
+        # if self._prepare_process.is_alive():
+        #     print("Prepare process is still alive!")
+        #     return
         if self._estimate_process.is_alive():
             self._device_output_queue.put("STOP")
         if self._worker_process4.is_alive():
@@ -607,7 +606,6 @@ class MainWindow(QWidget):
                     angles = meta['angles']
                     self.ui.sickside_angle.setText(str(angles[0]))
                     self.ui.goodside_angle.setText(str(angles[1]))
-                    continue
                     mismatchness = meta['mismatchness']
                     self.hand_joints = meta['hand_joints']
                     self.opt_params = meta["opt_params"]
@@ -820,10 +818,11 @@ class MainWindow(QWidget):
     def get_max_angle_elec(self):
         # print('self.signin_UI.dict_elec_threshold', self.signin_UI.dict_elec_threshold)
 
-        recommand_electricity_list = [int(item) for item in self.elec_threshold_dict.keys()]
-        recommand_electricity_list.sort()
-        max_angle = recommand_electricity_list[-1]
-        message = self.elec_threshold_dict[str(max_angle)]
+        # recommand_electricity_list = [int(item) for item in self.elec_threshold_dict.keys()]
+        # recommand_electricity_list.sort()
+        # max_angle = recommand_electricity_list[-1]
+        max_angle = 10
+        # message = self.elec_threshold_dict[str(max_angle)]
         message = {"command": "MaxElectricity"}
         return message
     

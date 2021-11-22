@@ -2,9 +2,8 @@
 Hand Model Fitting
 """
 import sys
-
-sys.path.append('/workspace/hand-complete-w-Handtailor/hcs/')
-print(sys.path)
+# sys.path.append('/workspace/hand-complete-w-Handtailor/hcs/')
+# print(sys.path)
 import torch
 import numpy as np
 from utils.util import add_arm_vertices
@@ -257,7 +256,7 @@ class Solver(object):
         params = {'so3': so3, 'beta': beta, 'bone': bone}
         opt_state = self.opt_init(params)
         n = 0
-        while n < 20:
+        while n < 5: # default 20
             n = n + 1
             params = self.get_params(opt_state)
             grads = self.gr(params, so3_init, beta_init, joint_root, kp2d, self.camparam)

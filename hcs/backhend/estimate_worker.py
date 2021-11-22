@@ -69,4 +69,4 @@ def Worker(inputs_queue, output_queue, proc_id, init_params, hand_joints, extra_
                     "angles": [sickside_angle, goodside_angle],
                     "mismatchness": 0
                 })
-                output_queue.put(output)
+            output_queue.put(output)
