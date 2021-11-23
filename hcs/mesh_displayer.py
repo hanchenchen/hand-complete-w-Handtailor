@@ -17,15 +17,16 @@ def Worker(inputs_queue, output_queue, proc_id, window_size, ks, R=None):
         lefthand_model = pickle.load(f, encoding='latin1')
         lefthand_vertices = np.array(lefthand_model['v_template'], dtype=np.float)
         left_faces = lefthand_model['f'].astype(np.int)
-    righthand_vertices, right_faces = add_arm_vertices(righthand_vertices, right_faces, 5)
-    lefthand_vertices, left_faces = add_arm_vertices(lefthand_vertices, left_faces, 5)
+    # righthand_vertices, right_faces = add_arm_vertices(righthand_vertices, right_faces, 5)
+    # lefthand_vertices, left_faces = add_arm_vertices(lefthand_vertices, left_faces, 5)
     faces = np.concatenate((right_faces, left_faces + len(righthand_vertices)), 0)
     vertices = np.concatenate((righthand_vertices, lefthand_vertices), 0)
 
     view_mat = axangle2mat([1, 0, 0], np.pi)
     mesh = o3d.geometry.TriangleMesh()
     mesh.triangles = o3d.utility.Vector3iVector(faces)
-    mesh.vertices = o3d.utility.Vector3dVector(np.matmul(view_mat, vertices.T).T * 1000)
+    mesh.vertices = o3d.utility.Vector3dVector(np.matmul(view_mat, vertices.T).T)
+    # mesh.vertices = o3d.utility.Vector3dVector(vertices)
     mesh.compute_vertex_normals()
 
     viewer = o3d.visualization.Visualizer()
@@ -53,16 +54,24 @@ def Worker(inputs_queue, output_queue, proc_id, window_size, ks, R=None):
     verts = vertices
     while True:
         if not inputs_queue.empty():
+            print(inputs_queue.qsize())
             message = inputs_queue.get()
             if message == 'STOP':
                 print("Quit 3D mesh displayer")
                 break
             else:
                 verts = message
-                verts = verts * 1000
+                # verts = verts * 1000
+                print(verts.shape)
+                # L = 778
+                # verts[:L, :] -= verts[0]
+                # verts[L:, 0] = -verts[L:, 0]
+                # verts[L:, :] -= verts[L] + 0.05
+                verts[:, :] -= verts[0]
                 verts = mesh_smoother.process(verts)
                 mesh.triangles = o3d.utility.Vector3iVector(faces)
-                # mesh.vertices = o3d.utility.Vector3dVector(np.matmul(view_mat, verts.T).T)
+                mesh.vertices = o3d.utility.Vector3dVector(np.matmul(view_mat, verts.T).T)
+                # mesh.vertices = o3d.utility.Vector3dVector(verts)
                 mesh.paint_uniform_color([228/255, 178/255, 148/255])
                 mesh.compute_triangle_normals()
                 mesh.compute_vertex_normals()
@@ -71,7 +80,8 @@ def Worker(inputs_queue, output_queue, proc_id, window_size, ks, R=None):
                 viewer.poll_events()
         else:
             mesh.triangles = o3d.utility.Vector3iVector(faces)
-            # mesh.vertices = o3d.utility.Vector3dVector(np.matmul(view_mat, verts.T).T)
+            mesh.vertices = o3d.utility.Vector3dVector(np.matmul(view_mat, verts.T).T)
+            # mesh.vertices = o3d.utility.Vector3dVector(verts)
             mesh.paint_uniform_color([228/255, 178/255, 148/255])
             mesh.compute_triangle_normals()
             mesh.compute_vertex_normals()

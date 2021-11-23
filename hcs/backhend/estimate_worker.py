@@ -48,7 +48,7 @@ def Worker(inputs_queue, output_queue, proc_id, init_params, hand_joints, extra_
                 glb_rot.append(_["glb_rot"])
                 Rs.append(_["Rs"])
             for key in output.keys():
-                output[key] = np.stack(output[key], 0)
+                output[key] = np.concatenate(output[key], 0)
             glb_rot = np.concatenate(glb_rot, 0)
             Rs = np.concatenate(Rs, 0)
             if init_Rs is None:

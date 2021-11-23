@@ -519,7 +519,6 @@ class MainWindow(QWidget):
             res_thread.setDaemon(True)
             res_thread.start()
         else:
-            self.start_mesh_display_process()
             # self.update_display3d(self.vertices)
             self.on_singlecam_estimate_triggered(None, None, None)
 
@@ -584,16 +583,17 @@ class MainWindow(QWidget):
                                                                           threshold, lefthand, righthand,
                                                                           w_silhouette, w_pointcloud, w_poseprior, w_reprojection, w_temporalprior,
                                                                           left, use_pcaprior))
+
         self._estimate_process.start()
-        # est_thread = Thread(target=self.update_estimate, args=(vis_method,))
         self.elecState = 0
         self.goodside_angle_queue = deque(maxlen=angle_length)
         self.sickside_angle_queue = deque(maxlen=angle_length)
+
+        self.start_mesh_display_process()
         est_thread = Thread(target=self.update_estimate, args=(match_threshold, send_angles))
         est_thread.setDaemon(True)
         est_thread.start()
 
-    # def update_estimate(self, vis_method):
     def update_estimate(self, match_threshold, send_angles=True):
         self.start_time = time.time()
         follow_type = self.settings.value("MONITOR/FOLLOW_TYPE")
@@ -620,25 +620,8 @@ class MainWindow(QWidget):
                             self.socket_send_by_sickside_rt(angles)
                         elif follow_type == "D":
                             self.socket_send_by_sickside_D(angles)
-                    # if vis_method == "open3d":
                     self.update_display3d(self.vertices)
-                    # else:
-                    #     self.ui.mayavi_widget.update_vertices(vertices)
-                    """ self.ui.round_progresser.UpdatePercent(completeness)
-                    self.ui.round_progresser.UpdateAngle(angles[0], angles[1])
-                    if mismatchness[0] > match_threshold and mismatchness[1] > match_threshold:
-                        self.ui.round_progresser.UpdateStatus("左手和右手\n手势异常")
-                    elif mismatchness[0] <= match_threshold and mismatchness[1] > match_threshold:
-                        self.ui.round_progresser.UpdateStatus("右手手势\n异常")
-                    elif mismatchness[0] > match_threshold and mismatchness[1] <= match_threshold:
-                        self.ui.round_progresser.UpdateStatus("左手手势\n异常")
-                    else:
-                        self.ui.round_progresser.UpdateStatus(" ")
-                else:
-                    self.ui.round_progresser.UpdateColor()
-                    # QMessageBox.warning(self, "警告", "手部脱离相机视野", QMessageBox.Yes)
-                    self.ui.round_progresser.UpdateStatus("手部脱离\n相机视野")
-                    break """
+
 
     def register_initjoints(self, initjoints):
         if initjoints.shape[0] == 2:

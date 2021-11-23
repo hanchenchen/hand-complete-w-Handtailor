@@ -8,7 +8,7 @@ import torch
 import numpy as np
 from utils.util import add_arm_vertices
 
-torch.set_num_threads(1)
+# torch.set_num_threads(1)
 
 import cv2
 import jax.numpy as npj
