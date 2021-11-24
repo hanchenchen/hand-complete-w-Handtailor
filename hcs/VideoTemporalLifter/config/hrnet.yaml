@@ -1,0 +1,108 @@
+DATASET:
+  NAME: RHD_2D
+  ROOT: '/HDD_sdc/HandDataset/dataset_gather/'
+  TRAIN_ANNOT_FILE: '/HDD_sdb/liushuai/HRNet/train+test_list/train+val/huawei+public_dataset_list/train.json'
+  TEST_ANNOT_FILE: '/HDD_sdb/liushuai/HRNet_test1/HRNet/self_test.json'
+  COLOR_RGB: True
+  AUGMENTATION:
+    FLIP: False
+    ROTATION_FACTOR: 45
+    SCALE_FACTOR: 0.35
+MODEL:
+  NAME: pose_hrnet
+  NUM_JOINTS: 21
+  INIT_WEIGHTS: true
+  PRETRAINED: ''
+  IMAGENET_PRETRAINED: 'imagenet_pretrained/hrnet_w32-36af842e.pth'
+  TARGET_TYPE: gaussian
+  INPUT_WIDTH: 224
+  INPUT_HEIGHT: 224
+  HEATMAP_WIDTH: 56
+  HEATMAP_HEIGHT: 56
+  SIGMA: 2
+  EXTRA:
+    USE_MOBILE: false
+    PRETRAINED_LAYERS:
+    - 'conv1'
+    - 'bn1'
+    - 'conv2'
+    - 'bn2'
+    - 'layer1'
+    - 'transition1'
+    - 'stage2'
+    - 'transition2'
+    - 'stage3'
+    - 'transition3'
+    - 'stage4'
+    FINAL_CONV_KERNEL: 1
+    STAGE2:
+      NUM_MODULES: 1
+      NUM_BRANCHES: 2
+      BLOCK: BASIC
+      NUM_BLOCKS:
+      - 4
+      - 4
+      NUM_CHANNELS:
+      - 32
+      - 64
+      FUSE_METHOD: SUM
+    STAGE3:
+      NUM_MODULES: 4
+      NUM_BRANCHES: 3
+      BLOCK: BASIC
+      NUM_BLOCKS:
+      - 4
+      - 4
+      - 4
+      NUM_CHANNELS:
+      - 32
+      - 64
+      - 128
+      FUSE_METHOD: SUM
+    STAGE4:
+      NUM_MODULES: 3
+      NUM_BRANCHES: 4
+      BLOCK: BASIC
+      NUM_BLOCKS:
+      - 4
+      - 4
+      - 4
+      - 4
+      NUM_CHANNELS:
+      - 32
+      - 64
+      - 128
+      - 256
+      FUSE_METHOD: SUM
+LOSS:
+  USE_TARGET_WEIGHT: true
+TRAIN:
+  CUDNN:
+    BENCHMARK: true
+    DETERMINISTIC: false
+    ENABLED: true
+  BATCH_SIZE: 1
+  SHUFFLE: true
+  EPOCH: 210
+  OPTIMIZER:
+    NAME: adam
+    AMSGRAD: False
+    LR: 0.001
+    GAMMA1: 0.99
+    GAMMA2: 0.0
+    MOMENTUM: 0.9
+    NESTEROV: false
+    WD: 0.0001
+  SCHEDULER:
+    NAME: Step
+    LR_DECAY: 0.9
+    STEP_SIZE: 25
+  NUM_WORKERS: 24
+  LOG_FREQ: 5
+  EVAL_FREQ: 1
+DEBUG:
+  DEBUG: true
+  SAVE_BATCH_IMAGES_GT: true
+  SAVE_BATCH_IMAGES_PRED: true
+  SAVE_HEATMAPS_GT: true
+  SAVE_HEATMAPS_PRED: true
