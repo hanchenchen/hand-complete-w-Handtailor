@@ -589,7 +589,7 @@ class MainWindow(QWidget):
         self.goodside_angle_queue = deque(maxlen=angle_length)
         self.sickside_angle_queue = deque(maxlen=angle_length)
 
-        self.start_mesh_display_process()
+        # self.start_mesh_display_process()
         est_thread = Thread(target=self.update_estimate, args=(match_threshold, send_angles))
         est_thread.setDaemon(True)
         est_thread.start()
@@ -606,6 +606,7 @@ class MainWindow(QWidget):
                     angles = meta['angles']
                     self.ui.sickside_angle.setText(str(angles[0]))
                     self.ui.goodside_angle.setText(str(angles[1]))
+                    continue
                     mismatchness = meta['mismatchness']
                     self.hand_joints = meta['hand_joints']
                     self.opt_params = meta["opt_params"]

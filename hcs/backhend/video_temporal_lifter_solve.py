@@ -79,15 +79,19 @@ class Solver(object):
         self.pose_list.append(right_pose_list)
         self.pose_list.append(left_pose_list)
 
-        fig = plt.figure()
+        self.fig = plt.figure()
 
         self.all_color = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 0, 255), (255, 215, 0), (0, 255, 255), (255, 255, 0)]
 
 
     @torch.no_grad()
-    def __call__(self, img, Ks, mode=1):
+    def __call__(self, img, mode=1):
 
-        ret, frame = img
+        output = {
+            "angle": [0, 0],
+        }
+
+        frame = img
 
         width = frame.shape[1]
         # frame.shape (480, 640, 3)
@@ -127,7 +131,7 @@ class Solver(object):
             self.pose_list[i] = self.pose_list[i][-10:]
 
             if len(self.pose_list[i]) < 10:
-                continue
+                return output
 
             pose_3d = self.lifter.forword(np.asarray(self.pose_list[i]))
 
@@ -136,13 +140,13 @@ class Solver(object):
             pose_3d = pose_3d.transpose(0, 2, 1)
             pose_3d.tolist()
 
-            # TODO: plot 3d pose
-            if i == 1:
-                fig = plotHand3d(pose_3d, self.all_color, fig)
-
-                plt.ion()
-                plt.pause(0.001)
-                plt.cla()
+            # # TODO: plot 3d pose
+            # if i == 1:
+            #     self.fig = plotHand3d(pose_3d, self.all_color, self.fig)
+            #
+            #     plt.ion()
+            #     plt.pause(0.001)
+            #     plt.cla()
 
             # TODO: calculate vector angle
             pose_3d = pose_3d.transpose(0, 2, 1)
@@ -150,24 +154,17 @@ class Solver(object):
             pose_3d_list.append(pose_3d)
 
         if len(pose_3d_list) != 2:
-            continue
+            pose_3d_list.append(pose_3d_list[0])
 
         angle = diff_pose(pose_3d_list, mode)
+        output.update({
+            "angle": [int(angle), 0],
+        })
 
-        cv2.putText(frame, str(angle), (50, 50), self.font, 1.2, (0, 255, 0), 3)
+        cv2.putText(frame, str(angle), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0,255,0), 3)
 
-        cv2.imshow('frame', frame)
+        cv2.imshow('frame',frame)
         cv2.waitKey(2)
-
-        opt_params = np.zeros((62))
-
-        output = {
-            "opt_params": opt_params.astype('float32'),
-            "vertices": pred_v.astype('float32'),
-            "hand_joints": kp2d,
-            "glb_rot": root_quat,
-            "Rs": result['pose_rot_matrix']
-        }
 
         return output
 

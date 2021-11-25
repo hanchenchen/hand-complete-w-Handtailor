@@ -1,6 +1,6 @@
-from core import config
-from model.hrnet.pose_hrnet import PoseHighResolutionNet
-from utils.inference_util import crop_image_with_static_size, get_max_preds, flip_img, plot_hand
+from VideoTemporalLifter.core import config
+from VideoTemporalLifter.model.hrnet.pose_hrnet import PoseHighResolutionNet
+from VideoTemporalLifter.utils.inference_util import crop_image_with_static_size, get_max_preds, flip_img, plot_hand
  
 import sys
 import torch
