@@ -6,13 +6,10 @@ import PIL.Image as Image
 from backhend.video_temporal_lifter_solve import Solver
 
 
-def Worker(inputs_queue, output_queue, proc_id, init_params, hand_joints, extra_verts,
-           wrist_rot_pitch, wrist_rot_yaw, gesture,
-           height, width, step_size, num_iters,
-           threshold, lefthand, righthand,
-           w_silhouette, w_pointcloud, w_poseprior, w_reprojection,  w_temporalprior, left, use_pcaprior=True):
+def Worker(inputs_queue, output_queue, gesture, left):
 
     solver = None
+    mode = 2 if gesture == "fist" else 1
     while True:
         meta = inputs_queue.get()
         if meta == 'STOP':
@@ -22,7 +19,7 @@ def Worker(inputs_queue, output_queue, proc_id, init_params, hand_joints, extra_
             color, depth, Ks = meta['color'][0], meta['depth'][0], meta['ks'][0]
 
             if solver is None:
-                solver = Solver(calibration_mx=Ks)
+                solver = Solver(calibration_mx=Ks, mode=mode)
             _ = solver(color)
 
             output = {

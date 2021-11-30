@@ -28,6 +28,7 @@ class Preference(QMainWindow, Settings_ui.Ui_Form):
         self.w_temporalprior_edit.setText(settings.value("OPTIMIZATION/W_TEMPORALPRIOR"))
         self.w_shapeprior_edit.setText(settings.value("OPTIMIZATION/W_SHAPEPRIOR"))
         self.method.setCurrentText(settings.value("OPTIMIZATION/METHOD"))
+        self.model.setCurrentText(settings.value("OPTIMIZATION/MODEL"))
         self.est_method.setCurrentText(settings.value("OPTIMIZATION/EST_METHOD"))
         self.use_prior.setCheckable(True)
         self.all_pose.setCheckable(True)
@@ -48,6 +49,7 @@ class Preference(QMainWindow, Settings_ui.Ui_Form):
         # Path
         self.lefthand_edit.setText(settings.value("PATH/LEFT_MANO"))
         self.righthand_edit.setText(settings.value("PATH/RIGHT_MANO"))
+        self.device_exe.setText(settings.value("PATH/EXE_FILE"))
         self.detector_edit.setText(settings.value("PATH/DETECTOR_MODEL"))
         self.pose_edit.setText(settings.value("PATH/POSE_MODEL"))
 

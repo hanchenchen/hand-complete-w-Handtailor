@@ -23,7 +23,7 @@
     </rect>
    </property>
    <property name="currentIndex">
-    <number>2</number>
+    <number>3</number>
    </property>
    <widget class="QWidget" name="camera_preference">
     <attribute name="title">
@@ -635,7 +635,7 @@
      <property name="title">
       <string/>
      </property>
-     <widget class="QWidget" name="">
+     <widget class="QWidget" name="layoutWidget">
       <property name="geometry">
        <rect>
         <x>10</x>
@@ -692,6 +692,34 @@
            <item>
             <property name="text">
              <string>mayavi</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_29">
+         <item>
+          <widget class="QLabel" name="label_30">
+           <property name="text">
+            <string>模型</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="model">
+           <item>
+            <property name="text">
+             <string>TemporalSmoothing</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>HandTailor</string>
             </property>
            </item>
           </widget>
@@ -810,6 +838,20 @@
          </item>
          <item>
           <widget class="QLineEdit" name="righthand_edit"/>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_30">
+         <item>
+          <widget class="QLabel" name="label_31">
+           <property name="text">
+            <string>治疗仪</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="device_exe"/>
          </item>
         </layout>
        </item>

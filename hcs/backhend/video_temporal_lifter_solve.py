@@ -83,9 +83,10 @@ class Solver(object):
 
         self.all_color = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 0, 255), (255, 215, 0), (0, 255, 255), (255, 255, 0)]
 
+        self.mode = mode
 
     @torch.no_grad()
-    def __call__(self, img, mode=1):
+    def __call__(self, img):
 
         output = {
             "angle": [0, 0],
@@ -156,7 +157,7 @@ class Solver(object):
         if len(pose_3d_list) != 2:
             pose_3d_list.append(pose_3d_list[0])
 
-        angle = diff_pose(pose_3d_list, mode)
+        angle = diff_pose(pose_3d_list, self.mode)
         output.update({
             "angle": [int(angle), 0],
         })

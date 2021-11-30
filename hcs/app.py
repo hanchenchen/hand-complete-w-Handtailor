@@ -4,7 +4,7 @@ from PyQt5.QtGui import QFont, QImage, QPixmap
 from PyQt5.Qt import QMessageBox
 from Users import SignUp, SignIn, sqlite_data
 from Settings import Preference
-from backhend import Prepare_Worker, Estimate_Worker, External_Worker
+from backhend import Prepare_Worker, External_Worker, Estimate_TemporalSmoothing_Worker, Estimate_HandTailor_Worker
 from collections import deque, OrderedDict
 import multiprocessing as mp
 from threading import Thread
@@ -477,8 +477,15 @@ class MainWindow(QWidget):
         # self.elec_threshold_dict = self.signin_UI.dict_elec_threshold[self.ui.gesture]
         # print(self.elec_threshold_dict.keys())
         # kwargs
+        model = self.settings.value("OPTIMIZATION/MODEL")
+        if model == 'TemporalSmoothing':
+            self.on_singlecam_estimate_triggered(None, None, None)
+        elif model =='HandTailor':
+            self.on_singlecam_estimate_triggered(None, None, None)
+        return
+
         est_method = int(self.settings.value("OPTIMIZATION/EST_METHOD"))
-        if 0: #self.num_start_triggered == 0 or est_method == 0:
+        if self.num_start_triggered == 0 or est_method == 0:
             height = int(self.settings.value("CAMERA/HEIGHT"))
             width = int(self.settings.value("CAMERA/WIDTH"))
             detect_threshold = float(self.settings.value("OPTIMIZATION/DETECT_THRESHOLD"))
@@ -519,11 +526,12 @@ class MainWindow(QWidget):
             res_thread.setDaemon(True)
             res_thread.start()
         else:
-            # self.update_display3d(self.vertices)
-            self.on_singlecam_estimate_triggered(None, None, None)
+            self.start_mesh_display_process()
+            self.update_display3d(self.vertices)
+            self.on_singlecam_estimate_triggered(self.opt_params, self.hand_joints, self.extra_verts)
 
         self.num_start_triggered += 1
-    
+
     def on_envoke_exteranl(self, exe_file):
         if os.path.exists(exe_file):
             self._external_process = mp.Process(target=External_Worker, args=(exe_file, 5))
@@ -545,7 +553,7 @@ class MainWindow(QWidget):
         #     return
         if self._estimate_process.is_alive():
             self._device_output_queue.put("STOP")
-        if self._worker_process4.is_alive():
+        if hasattr(self, '_worker_process4') and self._worker_process4.is_alive():
             self._vertices_queue.put("STOP")
         # self.ui.round_progresser.Reset()
 
@@ -554,6 +562,51 @@ class MainWindow(QWidget):
         #     QMessageBox.warning(self, "警告", "请先准备, 再点击开始", QMessageBox.Yes)
         #     return
         # else:
+        model = self.settings.value("OPTIMIZATION/MODEL")
+        if model == 'TemporalSmoothing':
+            # TemporalSmoothing
+
+            match_threshold = float(self.settings.value("MONITOR/MATCH_THRESHOLD"))
+            angle_length = int(self.settings.value("MONITOR/ANGLE_LENGTH"))
+            left = True if self.signin_UI.sickside == "left" else False
+
+            self._estimate_output_queue = mp.Queue()
+            self._estimate_process = mp.Process(target=Estimate_TemporalSmoothing_Worker, args=(self._device_output_queue,
+                                                                              self._estimate_output_queue,
+                                                                              self.ui.gesture,
+                                                                              left))
+
+            self._estimate_process.start()
+            self.elecState = 0
+            self.goodside_angle_queue = deque(maxlen=angle_length)
+            self.sickside_angle_queue = deque(maxlen=angle_length)
+
+            est_thread = Thread(target=self.update_estimate, args=(match_threshold, send_angles))
+            est_thread.setDaemon(True)
+            est_thread.start()
+        elif model == 'HandTailor':
+            # HandTailor
+            match_threshold = float(self.settings.value("MONITOR/MATCH_THRESHOLD"))
+            angle_length = int(self.settings.value("MONITOR/ANGLE_LENGTH"))
+            left = True if self.signin_UI.sickside == "left" else False
+
+            self._estimate_output_queue = mp.Queue()
+            self._estimate_process = mp.Process(target=Estimate_HandTailor_Worker, args=(self._device_output_queue,
+                                                                              self._estimate_output_queue,
+                                                                              self.ui.gesture,
+                                                                              left))
+
+            self._estimate_process.start()
+            self.elecState = 0
+            self.goodside_angle_queue = deque(maxlen=angle_length)
+            self.sickside_angle_queue = deque(maxlen=angle_length)
+
+            self.start_mesh_display_process()
+            est_thread = Thread(target=self.update_estimate, args=(match_threshold, send_angles))
+            est_thread.setDaemon(True)
+            est_thread.start()
+        return
+
         height = int(self.settings.value("CAMERA/HEIGHT"))
         width = int(self.settings.value("CAMERA/WIDTH"))
         step_size = float(self.settings.value("OPTIMIZATION/STEP_SIZE_2"))
@@ -606,7 +659,6 @@ class MainWindow(QWidget):
                     angles = meta['angles']
                     self.ui.sickside_angle.setText(str(angles[0]))
                     self.ui.goodside_angle.setText(str(angles[1]))
-                    continue
                     mismatchness = meta['mismatchness']
                     self.hand_joints = meta['hand_joints']
                     self.opt_params = meta["opt_params"]
@@ -703,6 +755,7 @@ class MainWindow(QWidget):
         self.settings.setValue("OPTIMIZATION/W_POSEPRIOR", self.preference_UI.w_poseprior_edit.text())
         self.settings.setValue("OPTIMIZATION/W_TEMPORALPRIOR", self.preference_UI.w_temporalprior_edit.text())
         self.settings.setValue("OPTIMIZATION/W_SHAPEPRIOR", self.preference_UI.w_shapeprior_edit.text())
+        self.settings.setValue("OPTIMIZATION/MODEL", self.preference_UI.model.currentText())
         # Monitor
         self.settings.setValue("MONITOR/CHECK_FPS", self.preference_UI.check_fps_edit.text())
         self.settings.setValue("MONITOR/COMPLETE_TYPE", self.preference_UI.complete_box.currentText())
@@ -713,6 +766,7 @@ class MainWindow(QWidget):
         # Path
         self.settings.setValue("PATH/LEFT_MANO", self.preference_UI.lefthand_edit.text())
         self.settings.setValue("PATH/RIGHT_MANO", self.preference_UI.righthand_edit.text())
+        self.settings.setValue("PATH/EXE_FILE", self.preference_UI.device_exe.text())
         self.settings.setValue("PATH/DETECTOR_MODEL", self.preference_UI.detector_edit.text())
         self.settings.setValue("PATH/POSE_MODEL", self.preference_UI.pose_edit.text())
 

@@ -6,15 +6,11 @@ import PIL.Image as Image
 from backhend.handtailor_solve import Solver
 
 
-def Worker(inputs_queue, output_queue, proc_id, init_params, hand_joints, extra_verts,
-           wrist_rot_pitch, wrist_rot_yaw, gesture,
-           height, width, step_size, num_iters,
-           threshold, lefthand, righthand,
-           w_silhouette, w_pointcloud, w_poseprior, w_reprojection,  w_temporalprior, left, use_pcaprior=True):
+def Worker(inputs_queue, output_queue, gesture, left):
 
     init_Rs = None
     init_glb_rot = None
-    completeness_estimator = Completeness(gesture, wrist_rot_pitch, wrist_rot_yaw)
+    completeness_estimator = Completeness(gesture)
     solver = None
     while True:
         meta = inputs_queue.get()
@@ -63,7 +59,8 @@ def Worker(inputs_queue, output_queue, proc_id, init_params, hand_joints, extra_
                 glb_rot = np.concatenate((init_glb_rot, glb_rot), 0)
                 Rs = np.concatenate((init_Rs, Rs), 0)
                 completeness, sickside_angle, goodside_angle = completeness_estimator(glb_rot.astype('float32'),
-                                                                                      Rs.astype('float32'))
+                                                                                      Rs.astype('float32'),
+                                                                                      left)
                 output.update({
                     "completeness": completeness,
                     "angles": [sickside_angle, goodside_angle],
