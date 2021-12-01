@@ -19,19 +19,32 @@ class Completeness(object):
         self.gesture = gesture
 
     def __call__(self, glb_rot, Rs, left=True):
+        print(self.gesture)
         if self.gesture == 'fist':
             init_Rs = Rs[:2, :, :, :]  # 4 x 15 x 3 x 3
             cur_Rs = Rs[2:, :, :, :]
-            delta_pose = np.einsum('klij,kljm->klim', np.linalg.inv(init_Rs), cur_Rs)
-            delta_angles = np.arccos(np.einsum('jkii', delta_pose) * 0.5 - 0.5)
+            delta_pose = np.einsum('klij,kljm->klim', init_Rs.transpose((0, 1, 3, 2)), cur_Rs)
+            delta_angles = np.arccos(np.clip(np.einsum('jkii', delta_pose) * 0.5 - 0.5, -1.0, 1.0))
+            # print(init_Rs)
+            # print(cur_Rs)
+            # print(delta_pose)
+            # print(np.einsum('jkii', delta_pose))
+            # print(np.einsum('jkii', delta_pose) * 0.5 - 0.5)
+            # print(delta_angles)
             if left:
                 sickside_angles = delta_angles[0]
                 goodside_angles = delta_angles[1]
             else:
                 sickside_angles = delta_angles[1]
                 goodside_angles = delta_angles[0]
+            print(sickside_angles)
+            print(goodside_angles)
+
             sickside_angle = np.mean(sickside_angles[[0, 1, 3, 4, 6, 7, 9, 10]])
             goodside_angle = np.mean(goodside_angles[[0, 1, 3, 4, 6, 7, 9, 10]])
+            print(sickside_angle)
+            print(goodside_angle)
+
             if self.complete_method == 0:
                 completeness = abs(sickside_angle) / (np.pi / 2)
             else:

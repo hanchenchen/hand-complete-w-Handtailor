@@ -98,7 +98,10 @@ class Solver(object):
         # frame.shape (480, 640, 3)
 
         final_pose, score = self.hrnet_detector.forward(frame)
-        bbox_list = getBbox(final_pose[0], frame.shape, self.scale)
+        # bbox_list = getBbox(final_pose[0], frame.shape, self.scale)
+        scale = self.scale[0]
+        bbox_list = [[0, scale, scale//2, 480-scale//2], [640-scale, 640, scale//2, 480-scale//2]]
+        bbox_list = [[0, 348, 65, 415], [291, 640, 65, 415]]
 
         image_list = []
         top_left_list = []

@@ -24,6 +24,7 @@ def Worker(inputs_queue, outputs_queue, proc_id, resolution_width, resolution_he
     rs_config.enable_stream(rs.stream.color, resolution_width, resolution_height, rs.format.bgr8, frame_rate)
 
     device_manager = DeviceManager(rs.context(), rs_config)
+
     device_manager.enable_all_devices()
     assert(len(device_manager._available_devices) > 0), "No Devices connected."
     # Enable the emitter of the devices

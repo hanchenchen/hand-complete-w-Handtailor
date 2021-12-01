@@ -4,6 +4,7 @@ from utils import Completeness
 import PIL.Image as Image
 
 from backhend.video_temporal_lifter_solve import Solver
+import torch
 
 
 def Worker(inputs_queue, output_queue, gesture, left):
@@ -13,6 +14,9 @@ def Worker(inputs_queue, output_queue, gesture, left):
     while True:
         meta = inputs_queue.get()
         if meta == 'STOP':
+            if solver is not None:
+                del solver
+            torch.cuda.empty_cache()
             print("Quit Estimate Process.")
             break
         else:

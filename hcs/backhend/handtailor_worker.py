@@ -4,17 +4,22 @@ from utils import Completeness
 import PIL.Image as Image
 
 from backhend.handtailor_solve import Solver
+import torch
 
 
 def Worker(inputs_queue, output_queue, gesture, left):
 
     init_Rs = None
     init_glb_rot = None
+    print(gesture)
     completeness_estimator = Completeness(gesture)
     solver = None
     while True:
         meta = inputs_queue.get()
         if meta == 'STOP':
+            if solver is not None:
+                del solver
+            torch.cuda.empty_cache()
             print("Quit Estimate Process.")
             break
         else:
@@ -59,7 +64,7 @@ def Worker(inputs_queue, output_queue, gesture, left):
                 glb_rot = np.concatenate((init_glb_rot, glb_rot), 0)
                 Rs = np.concatenate((init_Rs, Rs), 0)
                 completeness, sickside_angle, goodside_angle = completeness_estimator(glb_rot.astype('float32'),
-                                                                                      Rs.astype('float32'),
+                                                                                      Rs.reshape(4, 15, 3, 3).astype('float32'),
                                                                                       left)
                 output.update({
                     "completeness": completeness,

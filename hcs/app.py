@@ -673,7 +673,8 @@ class MainWindow(QWidget):
                             self.socket_send_by_sickside_rt(angles)
                         elif follow_type == "D":
                             self.socket_send_by_sickside_D(angles)
-                    self.update_display3d(self.vertices)
+                    if self.settings.value("OPTIMIZATION/MODEL") == 'HandTailor':
+                        self.update_display3d(self.vertices)
 
 
     def register_initjoints(self, initjoints):
@@ -882,6 +883,7 @@ class MainWindow(QWidget):
                 message_dict = {"Channel": "0", "command": "Reduce"}
                 message = str(message_dict).replace("'", "\"")
                 self.server.send_message_to_all(message)
+            print(message)
     
     def socket_send_by_sickside_rt(self, angles):
         sickside_angle, goodside_angle = angles[0], angles[1]
