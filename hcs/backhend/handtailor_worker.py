@@ -8,14 +8,22 @@ import torch
 
 
 def Worker(inputs_queue, output_queue, solver, gesture, left):
-
     init_Rs = None
     init_glb_rot = None
     print(gesture)
     completeness_estimator = Completeness(gesture)
     while True:
         meta = inputs_queue.get()
+        output = {
+            "opt_params": [],
+            "vertices": [],
+            "hand_joints": [],
+            "completeness": 0,
+            "angles": [0, 0],
+            "mismatchness": 0,
+        }
         if meta == 'STOP':
+            output_queue.put(output)
             print("Quit Estimate Process.")
             break
         else:
@@ -26,11 +34,6 @@ def Worker(inputs_queue, output_queue, solver, gesture, left):
             color_left = color[:, :H, :]
             color_right = color[:, -1:-H:-1, :]
 
-            output = {
-                "opt_params": [],
-                "vertices": [],
-                "hand_joints": [],
-            }
             glb_rot = []
             Rs = []
             for i, img in enumerate([color_left, color_right]):
@@ -48,16 +51,13 @@ def Worker(inputs_queue, output_queue, solver, gesture, left):
             if init_Rs is None:
                 init_Rs = Rs
                 init_glb_rot = glb_rot
-                output.update({
-                    "completeness": 0,
-                    "angles": [0, 0],
-                    "mismatchness": 0
-                })
+
             else:
                 glb_rot = np.concatenate((init_glb_rot, glb_rot), 0)
                 Rs = np.concatenate((init_Rs, Rs), 0)
                 completeness, sickside_angle, goodside_angle = completeness_estimator(glb_rot.astype('float32'),
-                                                                                      Rs.reshape(4, 15, 3, 3).astype('float32'),
+                                                                                      Rs.reshape(4, 15, 3, 3).astype(
+                                                                                          'float32'),
                                                                                       left)
                 output.update({
                     "completeness": completeness,

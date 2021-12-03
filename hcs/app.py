@@ -580,6 +580,7 @@ class MainWindow(QWidget):
         # else:
         self.model_thread.join()
         model = self.settings.value("OPTIMIZATION/MODEL")
+        self.elec = 0
         if model == 'TemporalSmoothing':
             # TemporalSmoothing
 
@@ -682,6 +683,7 @@ class MainWindow(QWidget):
                     mismatchness = meta['mismatchness']
                     self.hand_joints = meta['hand_joints']
                     self.opt_params = meta["opt_params"]
+                    self.ui.electricity_1.setText(str(self.elec))
                     if send_angles:
                         self.goodside_angle_queue.append(angles[1])
                         self.sickside_angle_queue.append(angles[0])
@@ -901,6 +903,7 @@ class MainWindow(QWidget):
         sickside_angle, goodside_angle = angles[0], angles[1]
         if self.elecState == 0:
             print("Start electric.")
+            self.elec = 0
             self.server.send_message_to_all("Start")
             self.server.send_message_to_all(str(self.get_max_angle_elec()).replace("'", "\""))
             self.elecState = 1
@@ -909,12 +912,18 @@ class MainWindow(QWidget):
             if abs(sickside_angle - goodside_angle) <= threshold:
                 return
             if hasattr(self, 'sickside_angle'):
-                if goodside_angle - sickside_angle <= threshold:
+                if goodside_angle - sickside_angle <= threshold and self.elec > 0:
                     self.Reduce()
-                elif goodside_angle - sickside_angle < self.goodside_angle - self.sickside_angle - threshold:
+                    self.elec -= 1
+
+                elif goodside_angle - sickside_angle < self.goodside_angle - self.sickside_angle - threshold and self.elec > 0:
                     self.Reduce()
-                elif goodside_angle - sickside_angle >= self.goodside_angle - self.sickside_angle + threshold:
+                    self.elec -= 1
+
+                elif goodside_angle - sickside_angle >= self.goodside_angle - self.sickside_angle + threshold and self.elec < 15:
                     self.Increase()
+                    self.elec += 1
+
             else:
                 self.goodside_angle = goodside_angle
                 self.sickside_angle = sickside_angle
