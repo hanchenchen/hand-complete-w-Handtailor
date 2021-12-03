@@ -26,8 +26,8 @@ import system
 import sqlite3
 import pandas.io.sql as sql
 
-from backhend.handtailor_solve import Solver as HandtailorSolver
-from backhend.video_temporal_lifter_solve import Solver as TemporalLifterSolver
+# from backhend.handtailor_solve import Solver as HandtailorSolver
+# from backhend.video_temporal_lifter_solve import Solver as TemporalLifterSolver
 
 
 def load_darkstyle():
@@ -166,15 +166,15 @@ class MainWindow(QWidget):
         self.title_bar.pushButtonClose.clicked.disconnect()
         self.title_bar.pushButtonClose.clicked.connect(self.quit_system)
         # self.camera.start()
-        self.model_thread = Thread(target=self.load_models, args=())
-        self.model_thread.setDaemon(True)
-        self.model_thread.start()
+        # self.model_thread = Thread(target=self.load_models, args=())
+        # self.model_thread.setDaemon(True)
+        # self.model_thread.start()
 
 
-    def load_models(self):
-        ks = self._device_output_queue.get()['ks'][0]
-        self.TemporalLifterSolver = TemporalLifterSolver(ks)
-        self.HandtailorSolver = HandtailorSolver(ks)
+    # def load_models(self):
+    #     ks = self._device_output_queue.get()['ks'][0]
+    #     self.TemporalLifterSolver = TemporalLifterSolver(ks)
+    #     self.HandtailorSolver = HandtailorSolver(ks)
 
     def on_ShutdownDevice(self):
         self._device_input_queue.put('STOP')
@@ -578,7 +578,6 @@ class MainWindow(QWidget):
         #     QMessageBox.warning(self, "警告", "请先准备, 再点击开始", QMessageBox.Yes)
         #     return
         # else:
-        self.model_thread.join()
         model = self.settings.value("OPTIMIZATION/MODEL")
         self.elec = 0
         if model == 'TemporalSmoothing':
@@ -592,7 +591,6 @@ class MainWindow(QWidget):
             self._estimate_process = mp.Process(target=Estimate_TemporalSmoothing_Worker,
                                                 args=(self._device_output_queue,
                                                       self._estimate_output_queue,
-                                                      self.TemporalLifterSolver,
                                                       self.ui.gesture,
                                                       left))
 
@@ -613,7 +611,6 @@ class MainWindow(QWidget):
             self._estimate_output_queue = mp.Queue()
             self._estimate_process = mp.Process(target=Estimate_HandTailor_Worker, args=(self._device_output_queue,
                                                                                          self._estimate_output_queue,
-                                                                                         self.HandtailorSolver,
                                                                                          self.ui.gesture,
                                                                                          left))
 

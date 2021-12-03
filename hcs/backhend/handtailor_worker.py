@@ -7,7 +7,8 @@ from backhend.handtailor_solve import Solver
 import torch
 
 
-def Worker(inputs_queue, output_queue, solver, gesture, left):
+def Worker(inputs_queue, output_queue, gesture, left):
+    solver = None
     init_Rs = None
     init_glb_rot = None
     print(gesture)
@@ -24,11 +25,15 @@ def Worker(inputs_queue, output_queue, solver, gesture, left):
         }
         if meta == 'STOP':
             output_queue.put(output)
+            if solver is not None:
+                del solver
+            torch.cuda.empty_cache()
             print("Quit Estimate Process.")
             break
         else:
             color, depth, Ks = meta['color'][0], meta['depth'][0], meta['ks'][0]
-
+            if solver is None:
+                solver = Solver(Ks=Ks)
             color = cv2.cvtColor(color, cv2.COLOR_BGR2RGB)
             H, W, C = color.shape
             color_left = color[:, :H, :]

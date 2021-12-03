@@ -1,0 +1,4 @@
+jax: https://whls.blob.core.windows.net/unstable/index.html
+
+
+-i http://mirrors.aliyun.com/pypi/simple/ --trusted-host=mirrors.aliyun.com
