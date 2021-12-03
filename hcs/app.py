@@ -11,6 +11,7 @@ from threading import Thread
 import socket
 import websocket
 import chumpy
+import torch
 import numpy as np
 import MyBar
 import camera
@@ -24,6 +25,9 @@ import psutil
 import system
 import sqlite3
 import pandas.io.sql as sql
+
+from backhend.handtailor_solve import Solver as HandtailorSolver
+from backhend.video_temporal_lifter_solve import Solver as TemporalLifterSolver
 
 
 def load_darkstyle():
@@ -162,6 +166,15 @@ class MainWindow(QWidget):
         self.title_bar.pushButtonClose.clicked.disconnect()
         self.title_bar.pushButtonClose.clicked.connect(self.quit_system)
         # self.camera.start()
+        self.model_thread = Thread(target=self.load_models, args=())
+        self.model_thread.setDaemon(True)
+        self.model_thread.start()
+
+
+    def load_models(self):
+        ks = self._device_output_queue.get()['ks'][0]
+        self.TemporalLifterSolver = TemporalLifterSolver(ks)
+        self.HandtailorSolver = HandtailorSolver(ks)
 
     def on_ShutdownDevice(self):
         self._device_input_queue.put('STOP')
@@ -555,6 +568,9 @@ class MainWindow(QWidget):
             self._device_output_queue.put("STOP")
         if hasattr(self, '_worker_process4') and self._worker_process4.is_alive():
             self._vertices_queue.put("STOP")
+        if hasattr(self, 'goodside_angle') and hasattr(self, 'goodside_angle'):
+            del self.goodside_angle
+            del self.sickside_angle
         # self.ui.round_progresser.Reset()
 
     def on_singlecam_estimate_triggered(self, init_params, hand_joints, extra_verts, send_angles=True):
@@ -562,6 +578,7 @@ class MainWindow(QWidget):
         #     QMessageBox.warning(self, "警告", "请先准备, 再点击开始", QMessageBox.Yes)
         #     return
         # else:
+        self.model_thread.join()
         model = self.settings.value("OPTIMIZATION/MODEL")
         if model == 'TemporalSmoothing':
             # TemporalSmoothing
@@ -571,10 +588,12 @@ class MainWindow(QWidget):
             left = True if self.signin_UI.sickside == "left" else False
 
             self._estimate_output_queue = mp.Queue()
-            self._estimate_process = mp.Process(target=Estimate_TemporalSmoothing_Worker, args=(self._device_output_queue,
-                                                                              self._estimate_output_queue,
-                                                                              self.ui.gesture,
-                                                                              left))
+            self._estimate_process = mp.Process(target=Estimate_TemporalSmoothing_Worker,
+                                                args=(self._device_output_queue,
+                                                      self._estimate_output_queue,
+                                                      self.TemporalLifterSolver,
+                                                      self.ui.gesture,
+                                                      left))
 
             self._estimate_process.start()
             self.elecState = 0
@@ -592,9 +611,10 @@ class MainWindow(QWidget):
 
             self._estimate_output_queue = mp.Queue()
             self._estimate_process = mp.Process(target=Estimate_HandTailor_Worker, args=(self._device_output_queue,
-                                                                              self._estimate_output_queue,
-                                                                              self.ui.gesture,
-                                                                              left))
+                                                                                         self._estimate_output_queue,
+                                                                                         self.HandtailorSolver,
+                                                                                         self.ui.gesture,
+                                                                                         left))
 
             self._estimate_process.start()
             self.elecState = 0
@@ -864,7 +884,19 @@ class MainWindow(QWidget):
         # message = self.elec_threshold_dict[str(max_angle)]
         message = {"command": "MaxElectricity"}
         return message
-    
+
+    def Reduce(self):
+        message_dict = {"Channel": "0", "command": "Reduce"}
+        message = str(message_dict).replace("'", "\"")
+        self.server.send_message_to_all(message)
+        print(message)
+
+    def Increase(self):
+        message_dict = {"Channel": "0", "command": "Increase"}
+        message = str(message_dict).replace("'", "\"")
+        self.server.send_message_to_all(message)
+        print(message)
+
     def socket_send_by_sickside_D(self, angles):
         sickside_angle, goodside_angle = angles[0], angles[1]
         if self.elecState == 0:
@@ -873,18 +905,21 @@ class MainWindow(QWidget):
             self.server.send_message_to_all(str(self.get_max_angle_elec()).replace("'", "\""))
             self.elecState = 1
         if time.time() - self.start_time >= float(self.settings.value("MONITOR/SECOND_PER_SEND")):
-            if abs(sickside_angle - goodside_angle) <= int(self.settings.value("MONITOR/ANGLE_THRESHOLD")):
+            threshold = int(self.settings.value("MONITOR/ANGLE_THRESHOLD")) * (1 if self.ui.gesture=='fist' else 2)
+            if abs(sickside_angle - goodside_angle) <= threshold:
                 return
-            elif sickside_angle - goodside_angle <= -int(self.settings.value("MONITOR/ANGLE_THRESHOLD")):
-                message_dict = {"Channel": "0", "command": "Increase"}
-                message = str(message_dict).replace("'", "\"")
-                self.server.send_message_to_all(message)
+            if hasattr(self, 'sickside_angle'):
+                if goodside_angle - sickside_angle <= threshold:
+                    self.Reduce()
+                elif goodside_angle - sickside_angle < self.goodside_angle - self.sickside_angle - threshold:
+                    self.Reduce()
+                elif goodside_angle - sickside_angle >= self.goodside_angle - self.sickside_angle + threshold:
+                    self.Increase()
             else:
-                message_dict = {"Channel": "0", "command": "Reduce"}
-                message = str(message_dict).replace("'", "\"")
-                self.server.send_message_to_all(message)
-            print(message)
-    
+                self.goodside_angle = goodside_angle
+                self.sickside_angle = sickside_angle
+
+
     def socket_send_by_sickside_rt(self, angles):
         sickside_angle, goodside_angle = angles[0], angles[1]
         np_angle_dist = np.array(self.goodside_angle_queue) - np.array(self.sickside_angle_queue)

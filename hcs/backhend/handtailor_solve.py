@@ -184,7 +184,7 @@ def mano_de_j(so3, beta):
 
 class Solver(object):
 
-    def __init__(self, Ks, size):
+    def __init__(self, Ks, size=480):
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

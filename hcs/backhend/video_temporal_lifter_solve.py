@@ -85,9 +85,18 @@ class Solver(object):
 
         self.mode = mode
 
-    @torch.no_grad()
-    def __call__(self, img):
+        self.init_pose = []
+        self.left_angles = []
+        self.right_angles = []
 
+    @torch.no_grad()
+    def __call__(self, img, mode = 1, left=True):
+
+        if self.mode != mode:
+            self.init_pose = []
+            self.mode = mode
+            self.left_angles = []
+            self.right_angles = []
         output = {
             "angle": [0, 0],
         }
@@ -99,13 +108,12 @@ class Solver(object):
 
         final_pose, score = self.hrnet_detector.forward(frame)
         # bbox_list = getBbox(final_pose[0], frame.shape, self.scale)
-        scale = self.scale[0]
-        bbox_list = [[0, scale, scale//2, 480-scale//2], [640-scale, 640, scale//2, 480-scale//2]]
-        bbox_list = [[0, 348, 65, 415], [291, 640, 65, 415]]
+        bbox_list = [[0, 320, 80, 400], [320, 640, 80, 400]]
 
         image_list = []
         top_left_list = []
-        hand_side_list = ['right', 'left']
+        hand_side_list = ['left', 'right']
+
 
         for bbox in bbox_list:
             cropped_image = frame[bbox[2]:bbox[3], bbox[0]:bbox[1], :]
@@ -160,12 +168,34 @@ class Solver(object):
         if len(pose_3d_list) != 2:
             pose_3d_list.append(pose_3d_list[0])
 
-        angle = diff_pose(pose_3d_list, self.mode)
+        if not len(self.init_pose):
+            self.init_pose = pose_3d_list
+            sickside_angles = 0
+            goodside_angles = 0
+        else:
+
+            self.left_angles.append(diff_pose([pose_3d_list[0],self.init_pose[0]], self.mode))
+            self.right_angles.append(diff_pose([pose_3d_list[1],self.init_pose[1]], self.mode))
+
+            self.left_angles = self.left_angles[-10:]
+            self.right_angles = self.right_angles[-10:]
+            left_angle = sum(self.left_angles)/len(self.left_angles)
+            right_angle = sum(self.right_angles)/len(self.right_angles)
+
+            if left:
+                sickside_angles = left_angle
+                goodside_angles = right_angle
+            else:
+                sickside_angles = right_angle
+                goodside_angles = left_angle
+
+
         output.update({
-            "angle": [int(angle), 0],
+            "angle": [int(sickside_angles), int(goodside_angles)],
         })
 
-        cv2.putText(frame, str(angle), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0,255,0), 3)
+
+        cv2.putText(frame, str([int(sickside_angles), int(goodside_angles)]), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0,255,0), 3)
 
         cv2.imshow('frame',frame)
         cv2.waitKey(2)
@@ -532,6 +562,6 @@ def diff_pose(pose_3d_list, mode=1):
 
             max_angle_list.append(max_angle)
 
-        angle = np.abs(max_angle_list[0] - max_angle_list[1]) * 5
+        angle = np.abs(max_angle_list[0] - max_angle_list[1])
 
     return angle

@@ -7,19 +7,15 @@ from backhend.handtailor_solve import Solver
 import torch
 
 
-def Worker(inputs_queue, output_queue, gesture, left):
+def Worker(inputs_queue, output_queue, solver, gesture, left):
 
     init_Rs = None
     init_glb_rot = None
     print(gesture)
     completeness_estimator = Completeness(gesture)
-    solver = None
     while True:
         meta = inputs_queue.get()
         if meta == 'STOP':
-            if solver is not None:
-                del solver
-            torch.cuda.empty_cache()
             print("Quit Estimate Process.")
             break
         else:
@@ -29,9 +25,6 @@ def Worker(inputs_queue, output_queue, gesture, left):
             H, W, C = color.shape
             color_left = color[:, :H, :]
             color_right = color[:, -1:-H:-1, :]
-
-            if solver is None:
-                solver = Solver(Ks=Ks, size=H)
 
             output = {
                 "opt_params": [],
