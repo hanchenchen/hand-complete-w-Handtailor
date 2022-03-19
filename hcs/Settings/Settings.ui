@@ -809,10 +809,38 @@
         <x>10</x>
         <y>40</y>
         <width>361</width>
-        <height>151</height>
+        <height>195</height>
        </rect>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_5">
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_35">
+         <item>
+          <widget class="QLabel" name="label_36">
+           <property name="text">
+            <string>患侧</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="sick_side_edit">
+           <item>
+            <property name="text">
+             <string>right</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>left</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+        </layout>
+       </item>
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout_17">
          <item>

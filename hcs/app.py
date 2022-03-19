@@ -137,7 +137,7 @@ class MainWindow(QWidget):
             if not self._device_output_queue.empty():
                 meta = self._device_output_queue.get()
                 if type(meta) == dict:
-                    # print('!! meta', meta)
+                    print('!! meta', meta)
                     self.PutImg(meta["display"])
                     self.inputs = meta
                 else:
